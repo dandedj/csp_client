@@ -1,0 +1,7 @@
+{
+    "api": {
+        "listPlaquesUrl": "https://us-central1-dandeneau-ml.cloudfunctions.net/list",
+        "searchPlaquesUrl": "https://us-central1-dandeneau-ml.cloudfunctions.net/search",
+        "plaqueDetailUrl": "https://us-central1-dandeneau-ml.cloudfunctions.net/detail"
+    }
+}
