@@ -46,7 +46,7 @@ export default class ListPlaques extends Component {
                                     <td><Link to={`/detail/${plaque.id}`} className="btn btn-dark">View</Link></td>
                                     <td className="Plaque-Id">{plaque.id}</td>
                                     <td className="Plaque-Location">{plaque.latitude},{plaque.longitude}</td>
-                                    <td><div className="img-thumbnail"><img width="80" src={plaque.image_path} alt="" /></div></td>
+                                    <td><div className="img-thumbnail"><img width="80" src={plaque.image_url} alt="" /></div></td>
                                     <td><div className='Plaque-Text text-truncate' style={{ maxWidth: "150px" }}>{plaque.text}</div></td>
                                 </tr>
                             );

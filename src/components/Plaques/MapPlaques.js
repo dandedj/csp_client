@@ -7,6 +7,7 @@ import { renderToString } from 'react-dom/server';
 import { BiUpArrowCircle } from 'react-icons/bi';
 import { PlaquesService } from '../../services/PlaquesService';
 import { SearchContext } from './SearchContext';
+import { Card, Row, Col, CardHeader } from 'react-bootstrap';
 
 const MapPlaques = () => {
     const [plaques, setPlaques] = useState([]);
@@ -15,17 +16,17 @@ const MapPlaques = () => {
     const [error, setError] = useState(null);
 
     const { searchQuery } = useContext(SearchContext);
-    const plaquesService = new PlaquesService();
+
     const MAP_API_KEY = process.env.REACT_APP_MAPS_API_KEY;
 
     const containerStyle = {
         width: '100%',
-        height: '500px'
+        height: '90%'
     };
 
     const center = {
-        lat: 34.8414189,
-        lng: -82.399055
+        lat: 34.841326395062595,
+        lng: -82.39848640537643
     };
 
     const icons = [];
@@ -43,6 +44,8 @@ const MapPlaques = () => {
 
         console.log("Query: ", query);
         console.log(query == null);
+
+        const plaquesService = new PlaquesService();
 
         const plaquesPromise = query == null || query.trim() === ''
             ? plaquesService.getAllPlaques()
@@ -70,7 +73,6 @@ const MapPlaques = () => {
         setSelectedPlaque(null);
     }
 
-    console.log("API Key: ", MAP_API_KEY);
     return (
         <div className="container">
             <h1>Plaques</h1>
@@ -88,7 +90,7 @@ const MapPlaques = () => {
                     googleMapsApiKey={MAP_API_KEY}>
                     <GoogleMap
                         mapContainerStyle={containerStyle}
-                        zoom={18}
+                        zoom={19}
                         onLoad={map => {
                             map.setMapTypeId(window.google.maps.MapTypeId.SATELLITE);
                             map.setTilt(0);
@@ -113,7 +115,7 @@ const MapPlaques = () => {
                             );
                         })}
                     </GoogleMap>
-                    <Modal show={selectedPlaque !== null} onHide={handleClose}>
+                    <Modal show={selectedPlaque !== null} onHide={handleClose} size="lg" >
                         <Modal.Header closeButton>
                             <Modal.Title>Plaque Details</Modal.Title>
                         </Modal.Header>
@@ -121,9 +123,22 @@ const MapPlaques = () => {
                             {selectedPlaque && (
                                 <div>
                                     <p className="small">ID: {selectedPlaque.id}</p>
-                                    <p><img alt="{selectedPlaque.id}" src={selectedPlaque.image_path} className="img-thumbnail" ></img></p>
-                                    <h5>Text Found:</h5>
-                                    <blockquote className="small">{selectedPlaque.text}</blockquote>
+                                    <p><img alt="{selectedPlaque.id}" src={selectedPlaque.image_url} className="img-thumbnail" ></img></p>
+                                    <h5>Plaques</h5>
+                                    <Row>
+                                        {selectedPlaque.text.map((text, index) => (
+                                            <Col key={index}>
+                                                <Card>
+                                                    <CardHeader>Plaque</CardHeader>
+                                                    <Card.Body>
+                                                        <Card.Text>
+                                                            {text}
+                                                        </Card.Text>
+                                                    </Card.Body>
+                                                </Card>
+                                            </Col>
+                                        ))}
+                                    </Row>
                                 </div>
                             )}
                         </Modal.Body>

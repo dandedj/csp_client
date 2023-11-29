@@ -1,22 +1,22 @@
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import React, { useContext } from 'react';
-import { Spinner } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { SearchContext } from '../Plaques/SearchContext';
 import { LoadingContext } from './LoadingProvider';
 
 const Header = () => {
-    const { loading, setLoading } = useContext(LoadingContext);
+    const { setLoading } = useContext(LoadingContext);
     const navigate = useNavigate();
     const { searchQuery, setSearchQuery } = useContext(SearchContext);
-
+    const { rawSlug } = useParams();
+    const slug = rawSlug || '';
 
     const handleSearchSubmit = (event) => {
         const query = event.target.value;
         console.log(query);
         setSearchQuery(query);
         setLoading(true);
-        navigate(`/map?query=${query}`);
+        navigate(`${slug}/map?query=${query}`);
     };
 
     const handleSearchChange = (event) => {
@@ -26,7 +26,7 @@ const Header = () => {
     return (
         <nav data-bs-theme="dark" className="navbar navbar-expand-lg bg-body-tertiary">
             <div className='container-fluid'>
-                <a className="navbar-brand" href="#">
+                <a className="navbar-brand" href="/">
                     CSP
                 </a>
                 <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,13 +35,10 @@ const Header = () => {
                 <div className="collapse navbar-collapse" id="navbarNav">
                     <ul className="navbar-nav">
                         <li className="nav-item">
-                            <a className="nav-link active" aria-current="page" href="#">Home</a>
+                            <Link className="nav-link active" to={`${slug}/list`}>List</Link>
                         </li>
                         <li className="nav-item">
-                            <a className="nav-link" href="/list">List</a>
-                        </li>
-                        <li className="nav-item">
-                            <a className="nav-link" href="/map">Map</a>
+                            <Link className="nav-link active" to={`${slug}/map`}>Map</Link>
                         </li>
                     </ul>
 
