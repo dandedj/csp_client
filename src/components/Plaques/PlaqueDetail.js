@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Spinner } from 'react-bootstrap';
+import { Card, Row, Col, CardHeader, Spinner } from 'react-bootstrap';
 import { useParams } from "react-router-dom";
 import { PlaquesService } from '../../services/PlaquesService';
 
@@ -9,10 +9,10 @@ const PlaqueDetail = () => {
     const [error, setError] = useState(null);
 
     const { id } = useParams();
-    const plaquesService = new PlaquesService();
 
     useEffect(() => {
         setLoading(true);
+        const plaquesService = new PlaquesService();
 
         plaquesService.getPlaqueById(id)
             .then((res) => {
@@ -42,11 +42,6 @@ const PlaqueDetail = () => {
             </div>
         );
     }
-    if (plaque != null) {
-        var keys = Object.getOwnPropertyDescriptors(plaque);
-        console.log(keys);
-
-    }
 
     return (
         <div className="container">
@@ -56,10 +51,24 @@ const PlaqueDetail = () => {
                     <Card.Body>
                         <Card.Title>Plaque Information</Card.Title>
                         <Card.Text>
-                            <strong>Id:</strong> {plaque.id}<br />
-                            <strong>Location:</strong> {plaque.latitude}, {plaque.longitude} with bearing {plaque.bearing} &deg;<br />
-                            <strong>Photo:</strong> <img width="100%" src={plaque.image_path} alt="" /><br />
-                            <strong>Text:</strong> <div className='Plaque-Text' style={{ maxWidth: "100%" }}>{plaque.text}</div>
+                            <strong>Id: </strong><span className="badge bg-secondary">{plaque.id}</span><br />
+                            <strong>Location: </strong> <span className="badge bg-success">{plaque.latitude}</span>, <span className="badge bg-success">{plaque.longitude}</span> with bearing <span className="badge bg-secondary">{plaque.bearing}&deg;</span> <br />
+                            <img className="mb-3 rounder img-fluid" src={plaque.image_url} alt="" /><br />
+                            <Row>
+                            {plaque.text.map((text, index) => (
+                                <Col key={index}>
+                                    <Card>
+                                        <CardHeader>Plaque</CardHeader>
+                                        <Card.Body>
+                                            <Card.Text>
+                                                {text}
+                                            </Card.Text>
+                                        </Card.Body>
+                                    </Card>
+                                </Col>
+                            ))}
+                        </Row>
+                        <br /><br />
                         </Card.Text>
                     </Card.Body>
                 </Card>
