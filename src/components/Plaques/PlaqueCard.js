@@ -9,25 +9,31 @@ function PlaqueCard({ plaque }) {
             {plaque && (
                 <Card>
                     <Card.Body>
-                        <Card.Title>Plaque Information</Card.Title>
+                        
                         <Card.Text>
                             <strong>Id: </strong>
                             <span className="badge bg-secondary">
                                 {plaque.id}
                             </span>
                             <br />
-                            <strong>Location: </strong>{" "}
+                            <strong>Location: </strong>
                             <span className="badge bg-success">
-                                {plaque.latitude}
-                            </span>
-                            ,{" "}
+                                {Math.round(plaque.latitude*100000)/100000}
+                            </span>{" "}
+                            ,
                             <span className="badge bg-success">
-                                {plaque.longitude}
+                                {Math.round(plaque.longitude*100000)/100000}
                             </span>{" "}
                             with bearing{" "}
                             <span className="badge bg-secondary">
                                 {plaque.bearing}&deg;
-                            </span>{" "}
+                            </span>
+                            <br />
+                            <strong>Donated by: </strong>
+                            <span className="">
+                                { plaque.donated_by ? plaque.donated_by : "Anonymous" }
+                            </span>
+                            <br />
                             <br />
                             <img
                                 className="mb-3 rounder img-fluid"
@@ -57,7 +63,7 @@ PlaqueCard.propTypes = {
         id: PropTypes.string.isRequired,
         title: PropTypes.string.isRequired,
         // Add other plaque properties here
-      }).isRequired,
+    }).isRequired,
 };
 
 export default PlaqueCard;
