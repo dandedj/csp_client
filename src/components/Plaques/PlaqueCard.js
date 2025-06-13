@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { Card, Row, Col, Badge, ProgressBar } from "react-bootstrap";
 import Plaque from "./Plaque";
 import CroppedImage from "../Common/CroppedImage";
-import { getCardImageUrl, getImageAltText, getImageSrcSet, getImageSizes } from "../../utils/imageUtils";
+import { getCardImageUrl, getImageAltText, getImageSrcSet, getImageSizes, getImageUrl, hasCroppingCoordinates } from "../../utils/imageUtils";
 
 function PlaqueCard({ plaque }) {
     // Helper to get the plaque text, supporting both field naming conventions
@@ -15,6 +15,9 @@ function PlaqueCard({ plaque }) {
     
     // Log the plaque data for debugging
     console.log("PlaqueCard received:", plaque);
+
+    const hasCropping = hasCroppingCoordinates(plaque);
+    const imageUrl = getImageUrl(plaque, 'medium');
 
     return (
         <>
@@ -34,16 +37,45 @@ function PlaqueCard({ plaque }) {
                             </Col>
                         </Row>
                         
-                        {/* Image */}
+                        {/* Images Section */}
                         <div className="mb-3">
-                            <CroppedImage
-                                plaque={plaque}
-                                size="medium"
-                                width="100%"
-                                height={300}
-                                className="rounded"
-                                context="card"
-                            />
+                            {hasCropping ? (
+                                <Row>
+                                    <Col md={6}>
+                                        <h6 className="text-muted mb-2">Cropped Image</h6>
+                                        <CroppedImage
+                                            plaque={plaque}
+                                            size="medium"
+                                            width="100%"
+                                            height={250}
+                                            className="rounded"
+                                            context="card"
+                                        />
+                                    </Col>
+                                    <Col md={6}>
+                                        <h6 className="text-muted mb-2">Full Image</h6>
+                                        <img
+                                            src={imageUrl}
+                                            alt={getImageAltText(plaque, 'card')}
+                                            className="img-fluid rounded"
+                                            style={{ width: '100%', height: 250, objectFit: 'cover' }}
+                                            loading="lazy"
+                                        />
+                                    </Col>
+                                </Row>
+                            ) : (
+                                <div>
+                                    <h6 className="text-muted mb-2">Full Image</h6>
+                                    <CroppedImage
+                                        plaque={plaque}
+                                        size="medium"
+                                        width="100%"
+                                        height={300}
+                                        className="rounded"
+                                        context="card"
+                                    />
+                                </div>
+                            )}
                         </div>
                         
                         {/* Compact data section */}

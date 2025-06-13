@@ -384,8 +384,9 @@ const LeafletMapPlaques = () => {
       try {
         const geoJsonLayer = L.geoJSON(parkGeoJSON);
         const bounds = geoJsonLayer.getBounds();
+          // Use more generous padding and set a maximum zoom level for better view
         if (bounds.isValid()) {
-          mapRef.fitBounds(bounds, { padding: [20, 20] });
+          mapRef.fitBounds(bounds, { padding: [50, 50], maxZoom: 17 });
         }
       } catch (error) {
         console.error('Error fitting to park bounds:', error);
