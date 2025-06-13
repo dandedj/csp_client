@@ -89,7 +89,7 @@ function PlaqueCard({ plaque }) {
                             </Row>
                             
                             {/* Additional details in a compact format */}
-                            {(plaque.estimated_distance || plaque.position_in_image) && (
+                            {(plaque.estimated_distance || plaque.position_in_image || plaque.cropping_coordinates) && (
                                 <Row className="mt-2">
                                     <Col>
                                         {plaque.estimated_distance && (
@@ -107,6 +107,17 @@ function PlaqueCard({ plaque }) {
                                                 <strong>Image Position:</strong>{" "}
                                                 <span className="badge badge-brand-secondary">x: {Math.round(plaque.position_in_image.x * 100)}%</span>{" "}
                                                 <span className="badge badge-brand-secondary">y: {Math.round(plaque.position_in_image.y * 100)}%</span>
+                                                <br />
+                                            </>
+                                        )}
+                                        {plaque.cropping_coordinates && (
+                                            <>
+                                                <strong>Cropping:</strong>{" "}
+                                                <span className="badge badge-green">x: {Math.round(plaque.cropping_coordinates.x * 100)}%</span>{" "}
+                                                <span className="badge badge-green">y: {Math.round(plaque.cropping_coordinates.y * 100)}%</span>{" "}
+                                                <span className="badge badge-green">w: {Math.round(plaque.cropping_coordinates.width * 100)}%</span>{" "}
+                                                <span className="badge badge-green">h: {Math.round(plaque.cropping_coordinates.height * 100)}%</span>
+                                                <br />
                                             </>
                                         )}
                                     </Col>
@@ -170,6 +181,12 @@ PlaqueCard.propTypes = {
         }),
         estimated_distance: PropTypes.number,
         offset_direction: PropTypes.string,
+        cropping_coordinates: PropTypes.shape({
+            x: PropTypes.number,
+            y: PropTypes.number,
+            width: PropTypes.number,
+            height: PropTypes.number
+        }),
         related_plaques: PropTypes.arrayOf(
             PropTypes.shape({
                 id: PropTypes.string,

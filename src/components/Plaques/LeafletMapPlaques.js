@@ -7,6 +7,8 @@ import { PlaquesService } from '../../services/PlaquesService';
 import PlaqueCard from './PlaqueCard';
 import { SearchContext } from './SearchContext';
 import { useSearchParams } from 'react-router-dom';
+import { useGeolocation } from '../../hooks/useGeolocation';
+import { BiCurrentLocation } from 'react-icons/bi';
 
 // Import Leaflet CSS
 import 'leaflet/dist/leaflet.css';
@@ -74,6 +76,34 @@ const MapBoundsUpdater = ({ onBoundsChange, parkGeoJSON, setMapRef }) => {
   // The "Fit to Park" button can be used to manually fit to park bounds if needed
   
   return null;
+};
+
+// User location marker component
+const UserLocationMarker = ({ userLocation }) => {
+  if (!userLocation) return null;
+
+  // Create custom icon for user location
+  const userIcon = L.divIcon({
+    className: 'user-location-marker',
+    html: '<div style="background: #4285F4; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+    iconSize: [20, 20],
+    iconAnchor: [10, 10]
+  });
+
+  return (
+    <Marker
+      position={[userLocation.latitude, userLocation.longitude]}
+      icon={userIcon}
+      zIndexOffset={1000}
+    >
+      <Popup>
+        <div>
+          <strong>Your Location</strong><br />
+          Accuracy: ±{Math.round(userLocation.accuracy || 0)}m
+        </div>
+      </Popup>
+    </Marker>
+  );
 };
 
 // Custom marker clustering component
@@ -198,6 +228,9 @@ const LeafletMapPlaques = () => {
   const [paginationInfo, setPaginationInfo] = useState({});
   const [parkGeoJSON, setParkGeoJSON] = useState(null);
   const [mapRef, setMapRef] = useState(null);
+
+  // Get user's current location
+  const { location: userLocation, error: locationError, loading: locationLoading, getCurrentLocation, isMobile } = useGeolocation();
   
   // Debounce the local search query
   const debouncedSearchQuery = useDebounce(localSearchQuery, 500);
@@ -360,6 +393,13 @@ const LeafletMapPlaques = () => {
     }
   };
 
+  // Center map on user location
+  const centerOnUserLocation = () => {
+    if (mapRef && userLocation) {
+      mapRef.setView([userLocation.latitude, userLocation.longitude], 18);
+    }
+  };
+
   // GeoJSON style
   const geoJsonStyle = {
     color: '#8B5A96',
@@ -398,6 +438,18 @@ const LeafletMapPlaques = () => {
           >
             📍 Fit to Park
           </button>
+          {/* User Location Button - only show on mobile or when location is available */}
+          {(isMobile || userLocation) && (
+            <button
+              className="btn btn-outline-primary btn-sm ms-2"
+              onClick={userLocation ? centerOnUserLocation : getCurrentLocation}
+              disabled={locationLoading}
+              title={userLocation ? "Center on your location" : "Get your location"}
+            >
+              <BiCurrentLocation />
+              {locationLoading && <span className="ms-1">...</span>}
+            </button>
+          )}
         </div>
       </div>
 
@@ -458,6 +510,9 @@ const LeafletMapPlaques = () => {
           />
           
           {/* Plaque Markers */}
+          
+          {/* User Location Marker */}
+          <UserLocationMarker userLocation={userLocation} />
           <MarkerCluster
             plaques={plaques}
             onMarkerClick={handleMarkerClick}

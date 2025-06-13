@@ -37,6 +37,18 @@ const CroppedImage = ({
 
   const hasCropping = hasCroppingCoordinates(plaque);
   
+  // Debug logging
+  if (process.env.NODE_ENV === 'development') {
+    console.log('CroppedImage debug:', {
+      plaqueId: plaque?.id,
+      hasCropping,
+      croppingCoordinates: plaque?.cropping_coordinates,
+      imageUrl,
+      size,
+      context
+    });
+  }
+  
   if (hasCropping) {
     // Display cropped image
     const containerStyle = getCroppedImageContainerStyle(plaque, width, height);
@@ -46,6 +58,7 @@ const CroppedImage = ({
       <div 
         className={`cropped-image-container ${className}`}
         style={containerStyle}
+        title={`Cropped image: ${Math.round(plaque.cropping_coordinates.x * 100)}%, ${Math.round(plaque.cropping_coordinates.y * 100)}%, ${Math.round(plaque.cropping_coordinates.width * 100)}% × ${Math.round(plaque.cropping_coordinates.height * 100)}%`}
         {...props}
       >
         <img

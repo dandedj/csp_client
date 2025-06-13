@@ -4,7 +4,7 @@ import { ProgressBar, Toast, Form, Row, Col } from "react-bootstrap";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
 import { renderToString } from "react-dom/server";
-import { BiUpArrowCircle } from "react-icons/bi";
+import { BiUpArrowCircle, BiCurrentLocation } from "react-icons/bi";
 import { PlaquesService } from "../../services/PlaquesService";
 import PlaqueCard from "./PlaqueCard";
 import { SearchContext } from "./SearchContext";
@@ -96,6 +96,10 @@ const MapPlaques = () => {
     const [mapType, setMapType] = useState('hybrid'); // Track current map type
     const [mapOptions, setMapOptions] = useState(createMapOptions('hybrid'));
     const [markers, setMarkers] = useState([]); // Store marker references
+    const [userLocationMarker, setUserLocationMarker] = useState(null); // Store user location marker
+
+    // Get user's current location
+    const { location: userLocation, error: locationError, loading: locationLoading, getCurrentLocation, isMobile } = useGeolocation();
     
     // Debounce the local search query before updating context and URL
     const debouncedSearchQuery = useDebounce(localSearchQuery, 500);
@@ -119,6 +123,44 @@ const MapPlaques = () => {
         }
     }, [mapRef, setMapCenter]);
     const queryFromURL = searchParams.get('query');
+
+    // Create user location marker
+    const createUserLocationMarker = useCallback(() => {
+        if (!mapRef || !userLocation || !window.google?.maps) return;
+
+        // Remove existing user location marker
+        if (userLocationMarker) {
+            userLocationMarker.setMap(null);
+        }
+
+        // Create user location marker with a distinct icon
+        const userMarker = new window.google.maps.Marker({
+            position: { lat: userLocation.latitude, lng: userLocation.longitude },
+            map: mapRef,
+            icon: {
+                path: window.google.maps.SymbolPath.CIRCLE,
+                scale: 8,
+                fillColor: '#4285F4',
+                fillOpacity: 1,
+                strokeColor: 'white',
+                strokeWeight: 2
+            },
+            title: 'Your Location',
+            zIndex: 10000
+        });
+
+        setUserLocationMarker(userMarker);
+    }, [mapRef, userLocation, userLocationMarker]);
+
+    // Center map on user location
+    const centerOnUserLocation = useCallback(() => {
+        if (mapRef && userLocation) {
+            const userPos = { lat: userLocation.latitude, lng: userLocation.longitude };
+            mapRef.panTo(userPos);
+            mapRef.setZoom(18);
+            setMapCenter(userPos);
+        }
+    }, [mapRef, userLocation]);
     
     // Track if this is the first render
     const isFirstRender = useRef(true);
@@ -326,6 +368,19 @@ const MapPlaques = () => {
                 setHasMoreData(false);
             });
     }, [searchQuery, confidenceThreshold, grouped, currentZoom, getMarkerLimit, mapBounds, mapsLoaded]);
+
+    // Create user location marker when location is available
+    useEffect(() => {
+        if (userLocation && mapsLoaded) {
+            createUserLocationMarker();
+        }
+        return () => {
+            // Cleanup user location marker on unmount
+            if (userLocationMarker) {
+                userLocationMarker.setMap(null);
+            }
+        };
+    }, [userLocation, mapsLoaded, createUserLocationMarker]);
 
     const handleSearchChange = (event) => {
         // Update local state immediately for responsive UI
@@ -975,6 +1030,20 @@ const MapPlaques = () => {
                             checked={grouped}
                             onChange={handleGroupedChange}
                             inline
+                        {/* User Location Button - only show on mobile or when location is available */}
+                        {(isMobile || userLocation) && (
+                            <Button
+                                variant="outline-primary"
+                                size="sm"
+                                onClick={userLocation ? centerOnUserLocation : getCurrentLocation}
+                                disabled={locationLoading}
+                                className="ms-2"
+                                title={userLocation ? "Center on your location" : "Get your location"}
+                            >
+                                <BiCurrentLocation />
+                                {locationLoading && <span className="ms-1">...</span>}
+                            </Button>
+                        )}
                         />
                     </div>
                 </div>
