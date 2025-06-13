@@ -187,7 +187,19 @@ export class PlaquesService {
             
             if (!response.ok) {
                 console.error(`API response error: ${response.status}`);
-                throw new Error(`API responded with status: ${response.status}`);
+                
+                // Try to get error details from response
+                let errorMessage = `API responded with status: ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    if (errorData.error || errorData.message) {
+                        errorMessage = errorData.error || errorData.message;
+                    }
+                } catch (parseError) {
+                    console.warn('Could not parse error response:', parseError);
+                }
+                
+                throw new Error(errorMessage);
             }
             
             let data;
