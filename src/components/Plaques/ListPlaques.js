@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { PlaquesService } from "../../services/PlaquesService";
 import { SearchContext } from "./SearchContext";
 import { BiGeo } from "react-icons/bi";
+import { getThumbnailUrl, getImageAltText, getImageSrcSet, getImageSizes } from "../../utils/imageUtils";
 
 export default function ListPlaques() {
     const [plaques, setPlaques] = useState([]);
@@ -177,12 +178,6 @@ export default function ListPlaques() {
                     <tr>
                         <th></th>
                         <th 
-                            onClick={() => handleSort('id')} 
-                            style={{cursor: 'pointer'}}
-                        >
-                            Id {sortField === 'id' && (sortDirection === 'asc' ? '▲' : '▼')}
-                        </th>
-                        <th 
                             onClick={() => handleSort('text')} 
                             style={{cursor: 'pointer'}}
                         >
@@ -227,57 +222,90 @@ export default function ListPlaques() {
                                 return valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
                             }
                         })
-                        .map((plaque, index) => (
-                        <tr key={index}>
-                            <td>
-                                <Link
-                                    to={`/detail/${plaque.id}`}
-                                    className="btn btn-sm btn-primary"
-                                >
-                                    View
-                                </Link>
-                            </td>
-                            <td>
-                                <small>{plaque.id}</small>
-                            </td>
-                            <td>
-                                {plaque.text ? 
-                                    plaque.text.substring(0, 50) + (plaque.text.length > 50 ? "..." : "") : 
-                                    plaque.plaque_text ? 
-                                    plaque.plaque_text.substring(0, 50) + (plaque.plaque_text.length > 50 ? "..." : "") :
-                                    "No text available"}
-                            </td>
-                            <td>
-                                {plaque.confidence ? (
-                                    <span className={`badge ${getConfidenceBadgeClass(plaque.confidence)}`}>
-                                        {plaque.confidence}%
-                                    </span>
-                                ) : (
-                                    <span className="badge badge-brand-secondary">N/A</span>
-                                )}
-                            </td>
-                            <td>
-                                <span className="badge badge-green">
-                                    {Math.round((plaque.location?.latitude || plaque.latitude) * 100000) / 100000}
-                                </span>
-                                {" , "}
-                                <span className="badge badge-green">
-                                    {Math.round((plaque.location?.longitude || plaque.longitude) * 100000) / 100000}
-                                </span>{" "}
-                                <Link to={`/map?query=${plaque.id}`} className="text-brand-green"><i className="bi bi-geo"></i></Link>
-                            </td>
-                            <td>
-                                <div className="img-thumbnail">
-                                    <img
-                                        width="80"
-                                        src={plaque.photo?.url || plaque.image_url}
-                                        alt=""
-                                        className="img-fluid"
-                                    />
-                                </div>
-                            </td>
-                        </tr>
-                    ))}
+                        .map((plaque, index) => {
+                            const lat = plaque.location?.latitude || plaque.latitude;
+                            const lng = plaque.location?.longitude || plaque.longitude;
+                            const mapPreviewUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=16&size=120x80&markers=color:purple%7C${lat},${lng}&key=${process.env.REACT_APP_MAPS_API_KEY}`;
+                            
+                            return (
+                                <tr key={index}>
+                                    <td>
+                                        <Link
+                                            to={`/detail/${plaque.id}`}
+                                            className="btn btn-sm btn-primary"
+                                            title={`View details for plaque ${plaque.id}`}
+                                            alt={`Plaque ID: ${plaque.id}`}
+                                        >
+                                            View
+                                        </Link>
+                                    </td>
+                                    <td>
+                                        {plaque.text ? 
+                                            plaque.text.substring(0, 50) + (plaque.text.length > 50 ? "..." : "") : 
+                                            plaque.plaque_text ? 
+                                            plaque.plaque_text.substring(0, 50) + (plaque.plaque_text.length > 50 ? "..." : "") :
+                                            "No text available"}
+                                    </td>
+                                    <td>
+                                        {plaque.confidence ? (
+                                            <span className={`badge ${getConfidenceBadgeClass(plaque.confidence)}`}>
+                                                {plaque.confidence}%
+                                            </span>
+                                        ) : (
+                                            <span className="badge badge-brand-secondary">N/A</span>
+                                        )}
+                                    </td>
+                                    <td>
+                                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                                            <Link to={`/map?query=${plaque.id}`} title="View on map">
+                                                <img
+                                                    src={mapPreviewUrl}
+                                                    alt={`Map location: ${Math.round(lat * 100000) / 100000}, ${Math.round(lng * 100000) / 100000}`}
+                                                    style={{ 
+                                                        width: '120px', 
+                                                        height: '80px', 
+                                                        borderRadius: '4px',
+                                                        border: '2px solid var(--brand-purple)',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                    onError={(e) => {
+                                                        // Fallback to coordinates if map fails to load
+                                                        e.target.style.display = 'none';
+                                                        e.target.nextSibling.style.display = 'block';
+                                                    }}
+                                                />
+                                                <div style={{ display: 'none', padding: '8px', backgroundColor: '#f8f9fa', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                                                    <small>
+                                                        <span className="badge badge-green">
+                                                            {Math.round(lat * 100000) / 100000}
+                                                        </span>
+                                                        {" , "}
+                                                        <span className="badge badge-green">
+                                                            {Math.round(lng * 100000) / 100000}
+                                                        </span>
+                                                    </small>
+                                                </div>
+                                            </Link>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <Link to={`/detail/${plaque.id}`} title="View plaque details">
+                                            <div className="img-thumbnail" style={{ cursor: 'pointer' }}>
+                                                <img
+                                                    width="80"
+                                                    src={getThumbnailUrl(plaque)}
+                                                    srcSet={getImageSrcSet(plaque)}
+                                                    sizes={getImageSizes('thumbnail')}
+                                                    alt={getImageAltText(plaque, 'thumbnail')}
+                                                    className="img-fluid"
+                                                    loading="lazy"
+                                                />
+                                            </div>
+                                        </Link>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                 </tbody>
             </table>
         </div>

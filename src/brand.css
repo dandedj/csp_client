@@ -351,7 +351,7 @@ textarea:focus {
 /* Container Spacing */
 .container {
   padding-top: 1rem;
-  padding-bottom: 4rem; /* Account for fixed footer */
+  padding-bottom: 2.5rem; /* Account for fixed footer */
 }
 
 /* Alert Customization */

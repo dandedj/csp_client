@@ -2,6 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import { Card, Row, Col, Badge, ProgressBar } from "react-bootstrap";
 import Plaque from "./Plaque";
+import { getCardImageUrl, getImageAltText, getImageSrcSet, getImageSizes } from "../../utils/imageUtils";
 
 function PlaqueCard({ plaque }) {
     // Helper to get the plaque text, supporting both field naming conventions
@@ -35,8 +36,11 @@ function PlaqueCard({ plaque }) {
                         {/* Image */}
                         <img
                             className="mb-3 rounded img-fluid"
-                            src={plaque.photo?.url || plaque.image_url}
-                            alt=""
+                            src={getCardImageUrl(plaque)}
+                            srcSet={getImageSrcSet(plaque)}
+                            sizes={getImageSizes('card')}
+                            alt={getImageAltText(plaque, 'card')}
+                            loading="lazy"
                         />
                         
                         {/* Compact data section */}
