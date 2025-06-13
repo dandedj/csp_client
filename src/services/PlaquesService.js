@@ -165,12 +165,8 @@ export class PlaquesService {
                 return null;
             }
             
-            let url = config.api.plaqueDetailUrl;
-            if (id) {
-                // Try different URL formats - some APIs use different patterns
-                // First try with ID as path parameter
-                url = `${url}/${id}`;
-            }
+            // For Google Cloud Functions, we'll try path parameter first, then query parameter
+            let url = `${config.api.plaqueDetailUrl}/${id}`;
 
             console.log(`Sending request to: ${url}`);
             
