@@ -29,6 +29,90 @@ export const getImageUrl = (plaque, size = 'medium', fallbackSize = 'medium') =>
 };
 
 /**
+ * Get cropped image style based on cropping coordinates
+ * @param {Object} plaque - The plaque object containing cropping coordinates
+ * @param {string} size - The desired image size context
+ * @returns {Object} CSS style object for cropped image display
+ */
+export const getCroppedImageStyle = (plaque, size = 'medium') => {
+  if (!plaque?.cropping_coordinates) {
+    return {};
+  }
+
+  const coords = plaque.cropping_coordinates;
+  
+  // Calculate the crop dimensions as percentages
+  const cropX = (coords.x || 0) * 100;
+  const cropY = (coords.y || 0) * 100;
+  const cropWidth = (coords.width || 1) * 100;
+  const cropHeight = (coords.height || 1) * 100;
+
+  // Calculate the scale factor to show only the cropped area
+  const scaleX = 100 / cropWidth;
+  const scaleY = 100 / cropHeight;
+
+  return {
+    objectFit: 'none',
+    objectPosition: `-${cropX * scaleX}% -${cropY * scaleY}%`,
+    transform: `scale(${scaleX}, ${scaleY})`,
+    transformOrigin: 'top left',
+    width: '100%',
+    height: '100%'
+  };
+};
+
+/**
+ * Get cropped image container style
+ * @param {Object} plaque - The plaque object containing cropping coordinates
+ * @param {number} displayWidth - The desired display width
+ * @param {number} displayHeight - The desired display height
+ * @returns {Object} CSS style object for the container
+ */
+export const getCroppedImageContainerStyle = (plaque, displayWidth, displayHeight) => {
+  if (!plaque?.cropping_coordinates) {
+    return {
+      width: displayWidth,
+      height: displayHeight,
+      overflow: 'hidden'
+    };
+  }
+
+  const coords = plaque.cropping_coordinates;
+  const aspectRatio = (coords.width || 1) / (coords.height || 1);
+  
+  // Maintain aspect ratio while fitting within display dimensions
+  let containerWidth = displayWidth;
+  let containerHeight = displayHeight;
+  
+  if (displayWidth / displayHeight > aspectRatio) {
+    containerWidth = displayHeight * aspectRatio;
+  } else {
+    containerHeight = displayWidth / aspectRatio;
+  }
+
+  return {
+    width: containerWidth,
+    height: containerHeight,
+    overflow: 'hidden',
+    position: 'relative',
+    margin: '0 auto'
+  };
+};
+
+/**
+ * Check if plaque has cropping coordinates
+ * @param {Object} plaque - The plaque object
+ * @returns {boolean} True if cropping coordinates exist
+ */
+export const hasCroppingCoordinates = (plaque) => {
+  return plaque?.cropping_coordinates && 
+         typeof plaque.cropping_coordinates.x === 'number' &&
+         typeof plaque.cropping_coordinates.y === 'number' &&
+         typeof plaque.cropping_coordinates.width === 'number' &&
+         typeof plaque.cropping_coordinates.height === 'number';
+};
+
+/**
  * Get thumbnail image URL (small size) for list views
  * @param {Object} plaque - The plaque object
  * @returns {string} Small image URL

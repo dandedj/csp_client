@@ -70,20 +70,8 @@ const MapBoundsUpdater = ({ onBoundsChange, parkGeoJSON, setMapRef }) => {
     };
   }, [map, onBoundsChange, setMapRef]);
   
-  // Fit to park bounds when GeoJSON loads
-  useEffect(() => {
-    if (parkGeoJSON && map) {
-      try {
-        const geoJsonLayer = L.geoJSON(parkGeoJSON);
-        const bounds = geoJsonLayer.getBounds();
-        if (bounds.isValid()) {
-          map.fitBounds(bounds, { padding: [20, 20] });
-        }
-      } catch (error) {
-        console.error('Error fitting to park bounds:', error);
-      }
-    }
-  }, [parkGeoJSON, map]);
+  // Note: Removed automatic fitBounds to preserve initial zoom level
+  // The "Fit to Park" button can be used to manually fit to park bounds if needed
   
   return null;
 };
@@ -204,7 +192,7 @@ const LeafletMapPlaques = () => {
   const confidenceThreshold = 0;
   const [grouped, setGrouped] = useState(false);
   const [localSearchQuery, setLocalSearchQuery] = useState('');
-  const [currentZoom, setCurrentZoom] = useState(16);
+      const [currentZoom, setCurrentZoom] = useState(18);
   const [mapBounds, setMapBounds] = useState(null);
   const [hasMoreData, setHasMoreData] = useState(true);
   const [paginationInfo, setPaginationInfo] = useState({});
@@ -434,7 +422,7 @@ const LeafletMapPlaques = () => {
       <div style={{ height: '80vh', width: '100%' }}>
         <MapContainer
           center={initialMapCenter}
-          zoom={16}
+          zoom={18}
           minZoom={10}
           maxZoom={22}
           style={{ height: '100%', width: '100%' }}

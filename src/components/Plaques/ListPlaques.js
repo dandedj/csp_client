@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { PlaquesService } from "../../services/PlaquesService";
 import { SearchContext } from "./SearchContext";
 import { BiGeo } from "react-icons/bi";
+import CroppedImage from "../Common/CroppedImage";
 import { getThumbnailUrl, getImageAltText, getImageSrcSet, getImageSizes } from "../../utils/imageUtils";
 
 export default function ListPlaques() {
@@ -291,14 +292,12 @@ export default function ListPlaques() {
                                     <td>
                                         <Link to={`/detail/${plaque.id}`} title="View plaque details">
                                             <div className="img-thumbnail" style={{ cursor: 'pointer' }}>
-                                                <img
-                                                    width="80"
-                                                    src={getThumbnailUrl(plaque)}
-                                                    srcSet={getImageSrcSet(plaque)}
-                                                    sizes={getImageSizes('thumbnail')}
-                                                    alt={getImageAltText(plaque, 'thumbnail')}
-                                                    className="img-fluid"
-                                                    loading="lazy"
+                                                <CroppedImage
+                                                    plaque={plaque}
+                                                    size="small"
+                                                    width={80}
+                                                    height={60}
+                                                    context="thumbnail"
                                                 />
                                             </div>
                                         </Link>

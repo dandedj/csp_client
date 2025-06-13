@@ -220,7 +220,7 @@ const MapPlaques = () => {
     const [hasMoreData, setHasMoreData] = useState(true);
     
     // Track current zoom level to determine how many markers to load
-    const [currentZoom, setCurrentZoom] = useState(21);
+    const [currentZoom, setCurrentZoom] = useState(22);
     
     // Add a flag for visible bounds to request only plaques in current view
     const [mapBounds, setMapBounds] = useState(null);
@@ -1001,7 +1001,7 @@ const MapPlaques = () => {
                 >
                     <GoogleMap
                         mapContainerStyle={containerStyle}
-                        zoom={21}
+                        zoom={22}
                         onLoad={handleMapLoad}
                         center={mapCenter}
                         options={{

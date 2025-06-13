@@ -348,6 +348,18 @@ textarea:focus {
   border-radius: 0.375rem;
 }
 
+/* Cropped Image Styling */
+.cropped-image-container {
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: var(--brand-shadow-sm);
+}
+
+.cropped-image-container img {
+  display: block;
+  border-radius: 0;
+}
+
 /* Container Spacing */
 .container {
   padding-top: 1rem;

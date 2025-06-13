@@ -2,6 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import { Card, Row, Col, Badge, ProgressBar } from "react-bootstrap";
 import Plaque from "./Plaque";
+import CroppedImage from "../Common/CroppedImage";
 import { getCardImageUrl, getImageAltText, getImageSrcSet, getImageSizes } from "../../utils/imageUtils";
 
 function PlaqueCard({ plaque }) {
@@ -34,14 +35,16 @@ function PlaqueCard({ plaque }) {
                         </Row>
                         
                         {/* Image */}
-                        <img
-                            className="mb-3 rounded img-fluid"
-                            src={getCardImageUrl(plaque)}
-                            srcSet={getImageSrcSet(plaque)}
-                            sizes={getImageSizes('card')}
-                            alt={getImageAltText(plaque, 'card')}
-                            loading="lazy"
-                        />
+                        <div className="mb-3">
+                            <CroppedImage
+                                plaque={plaque}
+                                size="medium"
+                                width="100%"
+                                height={300}
+                                className="rounded"
+                                context="card"
+                            />
+                        </div>
                         
                         {/* Compact data section */}
                         <Card.Text className="small">
