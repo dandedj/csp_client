@@ -5,26 +5,24 @@ import { Link } from 'react-router-dom';
 const Header = () => {
 
     return (
-        <nav data-bs-theme="dark" className="navbar navbar-expand-lg bg-body-tertiary">
+        <nav className="navbar navbar-expand-lg navbar-brand-purple mb-3">
             <div className='container-fluid'>
-                <a className="navbar-brand" href="/">
-                    CSP
-                </a>
+                <Link className="navbar-brand fw-bold" to="/">
+                    Cancer Survivor Park
+                </Link>
                 <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                     <span className="navbar-toggler-icon"></span>
                 </button>
                 <div className="collapse navbar-collapse" id="navbarNav">
-                    <ul className="navbar-nav">
+                    <ul className="navbar-nav ms-auto">
                         <li className="nav-item">
-                            <Link className="nav-link active" to={`/list`}>List</Link>
+                            <Link className="nav-link" to={`/list`}>LIST</Link>
                         </li>
                         <li className="nav-item">
-                            <Link className="nav-link active" to={`/map`}>Map</Link>
+                            <Link className="nav-link" to={`/map`}>MAP</Link>
                         </li>
                     </ul>
-
                 </div>
-                
             </div>
         </nav>
     );

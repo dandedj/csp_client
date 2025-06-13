@@ -1,0 +1,390 @@
+/* Cancer Survivors Park Alliance Brand Styles for CSP Application */
+
+/* Brand Color Variables */
+:root {
+  --brand-purple: #8B5A96;
+  --brand-purple-dark: #6d4778;
+  --brand-purple-light: #a977b4;
+  --brand-green: #7BA05B;
+  --brand-green-dark: #628349;
+  --brand-green-light: #94bd76;
+  --brand-white: #FFFFFF;
+  --brand-gray-dark: #333333;
+  --brand-gray-light: #F5F5F5;
+  --brand-gray-medium: #6c757d;
+  
+  /* Gradients */
+  --brand-gradient-purple: linear-gradient(135deg, var(--brand-purple) 0%, var(--brand-purple-dark) 100%);
+  --brand-gradient-green: linear-gradient(135deg, var(--brand-green) 0%, var(--brand-green-dark) 100%);
+  
+  /* Shadows */
+  --brand-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.08);
+  --brand-shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
+  --brand-shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* Typography */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Open Sans', 'Helvetica Neue', sans-serif;
+  color: var(--brand-gray-dark);
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  color: var(--brand-gray-dark);
+  margin-bottom: 1rem;
+}
+
+/* Override Bootstrap Primary Color */
+.btn-primary {
+  background-color: var(--brand-purple);
+  border-color: var(--brand-purple);
+  color: var(--brand-white);
+  font-weight: 500;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+  background-color: var(--brand-purple-dark);
+  border-color: var(--brand-purple-dark);
+  box-shadow: 0 4px 8px rgba(139, 90, 150, 0.3);
+}
+
+/* Secondary Button Style */
+.btn-outline-primary {
+  border-color: var(--brand-purple);
+  color: var(--brand-purple);
+  background-color: transparent;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus,
+.btn-outline-primary:active {
+  background-color: var(--brand-purple);
+  border-color: var(--brand-purple);
+  color: var(--brand-white);
+}
+
+/* Green Accent Button */
+.btn-green {
+  background-color: var(--brand-green);
+  border-color: var(--brand-green);
+  color: var(--brand-white);
+  font-weight: 500;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+}
+
+.btn-green:hover,
+.btn-green:focus {
+  background-color: var(--brand-green-dark);
+  border-color: var(--brand-green-dark);
+  color: var(--brand-white);
+  box-shadow: 0 4px 8px rgba(123, 160, 91, 0.3);
+}
+
+/* Navigation Bar */
+.navbar-brand-purple {
+  background: var(--brand-gradient-purple);
+  border: none;
+}
+
+.navbar-brand-purple .navbar-brand,
+.navbar-brand-purple .navbar-nav .nav-link {
+  color: var(--brand-white) !important;
+  font-weight: 500;
+  transition: opacity 0.3s ease;
+}
+
+.navbar-brand-purple .navbar-nav .nav-link:hover,
+.navbar-brand-purple .navbar-nav .nav-link:focus {
+  opacity: 0.85;
+  text-decoration: none;
+}
+
+.navbar-brand-purple .navbar-toggler {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.navbar-brand-purple .navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.9%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* Cards */
+.card {
+  border: none;
+  box-shadow: var(--brand-shadow-sm);
+  transition: box-shadow 0.3s ease;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.card:hover {
+  box-shadow: var(--brand-shadow-md);
+}
+
+.card-header {
+  background-color: var(--brand-purple);
+  color: var(--brand-white);
+  border: none;
+  font-weight: 600;
+}
+
+/* Badges */
+.badge-purple {
+  background-color: var(--brand-purple);
+  color: var(--brand-white);
+}
+
+.badge-green {
+  background-color: var(--brand-green);
+  color: var(--brand-white);
+}
+
+.badge-brand-secondary {
+  background-color: var(--brand-gray-medium);
+  color: var(--brand-white);
+}
+
+/* Progress Bars */
+.progress-bar-purple {
+  background-color: var(--brand-purple);
+}
+
+.progress-bar-green {
+  background-color: var(--brand-green);
+}
+
+/* Tables */
+.table-brand thead {
+  background-color: var(--brand-purple);
+  color: var(--brand-white);
+}
+
+.table-brand thead th {
+  border-color: var(--brand-purple-dark);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  letter-spacing: 0.5px;
+}
+
+/* Forms */
+.form-control:focus {
+  border-color: var(--brand-purple-light);
+  box-shadow: 0 0 0 0.2rem rgba(139, 90, 150, 0.25);
+}
+
+.form-select:focus {
+  border-color: var(--brand-purple-light);
+  box-shadow: 0 0 0 0.2rem rgba(139, 90, 150, 0.25);
+}
+
+/* Alerts */
+.alert-brand-info {
+  background-color: rgba(139, 90, 150, 0.1);
+  border-color: var(--brand-purple-light);
+  color: var(--brand-purple-dark);
+}
+
+/* Footer */
+.footer-brand {
+  background-color: var(--brand-gray-light);
+  border-top: 1px solid rgba(139, 90, 150, 0.2);
+  color: var(--brand-gray-dark);
+}
+
+.footer-brand a {
+  color: var(--brand-green);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.footer-brand a:hover {
+  color: var(--brand-green-dark);
+}
+
+/* Map Styling */
+.leaflet-container {
+  border-radius: 0.5rem;
+  box-shadow: var(--brand-shadow-md);
+}
+
+/* Custom marker colors */
+.marker-cluster-purple {
+  background-color: rgba(139, 90, 150, 0.6);
+}
+
+.marker-cluster-purple div {
+  background-color: rgba(139, 90, 150, 0.8);
+  color: var(--brand-white);
+}
+
+/* Loading Spinner */
+.spinner-border-purple {
+  color: var(--brand-purple);
+}
+
+/* Utility Classes */
+.bg-brand-purple {
+  background-color: var(--brand-purple) !important;
+}
+
+.bg-brand-green {
+  background-color: var(--brand-green) !important;
+}
+
+.bg-brand-light {
+  background-color: var(--brand-gray-light) !important;
+}
+
+.text-brand-purple {
+  color: var(--brand-purple) !important;
+}
+
+.text-brand-green {
+  color: var(--brand-green) !important;
+}
+
+.border-brand-purple {
+  border-color: var(--brand-purple) !important;
+}
+
+/* Hero Section (if added later) */
+.hero-section {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.hero-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  color: var(--brand-white);
+}
+
+.hero-content h1 {
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--brand-white);
+  margin-bottom: 1rem;
+}
+
+/* Accessibility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Focus Styles */
+a:focus,
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--brand-purple);
+  outline-offset: 2px;
+}
+
+/* Plaque Text Styling */
+.plaque-text {
+  font-size: 1.1rem;
+  line-height: 1.8;
+  color: var(--brand-gray-dark);
+  font-family: Georgia, 'Times New Roman', serif;
+  background-color: #fafafa;
+  padding: 1.5rem;
+  border-radius: 0.375rem;
+  margin: 0;
+}
+
+/* Image Styling */
+.img-fluid {
+  border-radius: 0.5rem;
+  box-shadow: var(--brand-shadow-sm);
+}
+
+.img-thumbnail {
+  border: 2px solid var(--brand-purple-light);
+  padding: 0.25rem;
+  background-color: var(--brand-white);
+  border-radius: 0.375rem;
+}
+
+/* Container Spacing */
+.container {
+  padding-top: 1rem;
+  padding-bottom: 4rem; /* Account for fixed footer */
+}
+
+/* Alert Customization */
+.alert-danger {
+  background-color: rgba(139, 90, 150, 0.1);
+  border-color: var(--brand-purple);
+  color: var(--brand-purple-dark);
+}
+
+.alert-warning {
+  background-color: rgba(123, 160, 91, 0.1);
+  border-color: var(--brand-green);
+  color: var(--brand-green-dark);
+}
+
+/* Modal Close Button Fix for Purple Header */
+.modal-header.bg-brand-purple .btn-close {
+  filter: brightness(0) invert(1);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hero-content h1 {
+    font-size: 2rem;
+  }
+  
+  .btn {
+    padding: 0.375rem 1rem;
+    font-size: 0.875rem;
+  }
+  
+  .plaque-text {
+    font-size: 1rem;
+    padding: 1rem;
+  }
+}

@@ -1,14 +1,53 @@
 import React, { useContext, useEffect, useState } from "react";
-import { ProgressBar, Toast } from "react-bootstrap";
+import { ProgressBar, Toast, Badge, Form, Button } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { PlaquesService } from "../../services/PlaquesService";
 import { SearchContext } from "./SearchContext";
+import { BiGeo } from "react-icons/bi";
 
 export default function ListPlaques() {
     const [plaques, setPlaques] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const { searchQuery, setSearchQuery } = useContext(SearchContext);
+    // Fixed confidence value - filter removed from UI
+    const confidenceThreshold = 0;
+    // Add sorting capability
+    const [sortField, setSortField] = useState('confidence');
+    const [sortDirection, setSortDirection] = useState('desc');
+    const [localSearchQuery, setLocalSearchQuery] = useState("");
+    
+    // Custom debounce hook for search
+    const useDebounce = (value, delay) => {
+        const [debouncedValue, setDebouncedValue] = useState(value);
+        
+        useEffect(() => {
+            const handler = setTimeout(() => {
+                setDebouncedValue(value);
+            }, delay);
+            
+            return () => {
+                clearTimeout(handler);
+            };
+        }, [value, delay]);
+        
+        return debouncedValue;
+    };
+    
+    // Debounce search query
+    const debouncedSearchQuery = useDebounce(localSearchQuery, 500);
+    
+    // Set initial local search from context
+    useEffect(() => {
+        if (searchQuery) {
+            setLocalSearchQuery(searchQuery);
+        }
+    }, []);
+    
+    // Update context when debounced query changes
+    useEffect(() => {
+        setSearchQuery(debouncedSearchQuery);
+    }, [debouncedSearchQuery, setSearchQuery]);
 
     useEffect(() => {
         setLoading(true);
@@ -19,14 +58,29 @@ export default function ListPlaques() {
 
         const plaquesPromise =
             query == null || query.trim() === ""
-                ? plaquesService.getAllPlaques()
-                : plaquesService.getPlaques(query);
+                ? plaquesService.getAllPlaques(confidenceThreshold)
+                : plaquesService.getPlaques(query, confidenceThreshold);
 
         plaquesPromise
             .then((res) => {
-                setPlaques(res);
-                setLoading(false);
-                console.log("Plaques: ", res.length); // Fix: Use 'res.length' instead of 'plaques.length'
+                // Handle the new API response format which includes pagination metadata
+                if (res && res.plaques) {
+                    // New format with pagination
+                    setPlaques(res.plaques);
+                    setLoading(false);
+                    console.log(`Plaques: ${res.plaques.length} of ${res.totalCount || 'unknown'} total`);
+                } else if (Array.isArray(res)) {
+                    // Old format for backward compatibility
+                    setPlaques(res);
+                    setLoading(false);
+                    console.log("Plaques: ", res.length);
+                } else {
+                    // Invalid response
+                    console.error("Invalid response format:", res);
+                    setPlaques([]);
+                    setLoading(false);
+                    setError("Received an invalid response format from the server");
+                }
             })
             .catch((error) => {
                 console.error(
@@ -36,10 +90,43 @@ export default function ListPlaques() {
                 setError("There has been a problem with your fetch operation");
                 setLoading(false);
             });
-    }, [searchQuery]);
+    }, [searchQuery, confidenceThreshold]);
 
     const handleSearchChange = (event) => {
-        setSearchQuery(event.target.value);
+        setLocalSearchQuery(event.target.value);
+    };
+
+    // Sort handler for table headers
+    const handleSort = (field) => {
+        if (sortField === field) {
+            // Toggle direction if clicking the same field
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            // Set new field and default to descending
+            setSortField(field);
+            setSortDirection('desc');
+        }
+    };
+
+    const handleFormSubmit = (event) => {
+        event.preventDefault();
+        setSearchQuery(localSearchQuery);
+    };
+
+    // Helper to get text confidence color
+    const getConfidenceColor = (confidence) => {
+        if (!confidence) return "secondary";
+        if (confidence > 80) return "success";
+        if (confidence > 50) return "warning";
+        return "danger";
+    };
+    
+    // Helper to get brand confidence badge class
+    const getConfidenceBadgeClass = (confidence) => {
+        if (!confidence) return "badge-brand-secondary";
+        if (confidence > 80) return "badge-green";
+        if (confidence > 50) return "badge-purple";
+        return "badge-brand-secondary";
     };
 
     return (
@@ -52,67 +139,140 @@ export default function ListPlaques() {
                     <Toast.Body>{error}</Toast.Body>
                 </Toast>
             )}
-            <div className="row align-items-center">
-                <div className="col">
-                    <h1 className="d-inline-block">Plaques</h1>
+            <div className="row align-items-center mb-3">
+                <div className="col-md-4">
+                    <small>
+                        Select a plaque to view its details or search for
+                        plaques by text.{" "}
+                    </small>
                 </div>
-                <div className="col">
-                    <form className="d-flex justify-content-end">
-                        <input
-                            className="form-control me-2"
+                <div className="col-md-3">
+                    {loading && <ProgressBar animated now={100} />}
+                </div>
+                <div className="col-md-3">
+                    <Form className="d-flex justify-content-end" onSubmit={handleFormSubmit}>
+                        <Form.Control
                             type="search"
                             placeholder="Search"
                             aria-label="Search"
-                            value={searchQuery}
+                            value={localSearchQuery}
                             onChange={handleSearchChange}
                             style={{ width: "200px" }}
                         />
-                    </form>
+                        <Button variant="primary" type="submit" className="ms-2">
+                            SEARCH
+                        </Button>
+                    </Form>
+                </div>
+                <div className="col-md-2">
+                    <div className="d-flex align-items-center h-100">
+                        <small className="text-muted">
+                            Click column headers to sort
+                        </small>
+                    </div>
                 </div>
             </div>
-            <table className="table span12">
-                <thead className="table-dark">
+            <table className="table table-striped table-brand">
+                <thead>
                     <tr>
                         <th></th>
-                        <th>Id</th>
-                        <th>Donated by</th>
+                        <th 
+                            onClick={() => handleSort('id')} 
+                            style={{cursor: 'pointer'}}
+                        >
+                            Id {sortField === 'id' && (sortDirection === 'asc' ? '▲' : '▼')}
+                        </th>
+                        <th 
+                            onClick={() => handleSort('text')} 
+                            style={{cursor: 'pointer'}}
+                        >
+                            Text {sortField === 'text' && (sortDirection === 'asc' ? '▲' : '▼')}
+                        </th>
+                        <th 
+                            onClick={() => handleSort('confidence')} 
+                            style={{cursor: 'pointer'}}
+                        >
+                            Confidence {sortField === 'confidence' && (sortDirection === 'asc' ? '▲' : '▼')}
+                        </th>
                         <th>Location</th>
                         <th>Photo</th>
                     </tr>
                 </thead>
-                <tbody className="table-light">
-                    {plaques.map((plaque, index) => (
+                <tbody>
+                    {/* Sort plaques before display */}
+                    {[...plaques]
+                        .sort((a, b) => {
+                            let valueA, valueB;
+                            
+                            // Determine how to extract the field's value
+                            if (sortField === 'confidence') {
+                                valueA = a.confidence || 0;
+                                valueB = b.confidence || 0;
+                            } else if (sortField === 'text') {
+                                valueA = (a.text || a.plaque_text || '').toLowerCase();
+                                valueB = (b.text || b.plaque_text || '').toLowerCase();
+                            } else if (sortField === 'id') {
+                                valueA = a.id || '';
+                                valueB = b.id || '';
+                            } else {
+                                // Default fallback
+                                valueA = a[sortField] || '';
+                                valueB = b[sortField] || '';
+                            }
+                            
+                            // Compare based on direction
+                            if (sortDirection === 'asc') {
+                                return valueA > valueB ? 1 : valueA < valueB ? -1 : 0;
+                            } else {
+                                return valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
+                            }
+                        })
+                        .map((plaque, index) => (
                         <tr key={index}>
                             <td>
                                 <Link
                                     to={`/detail/${plaque.id}`}
-                                    className="btn btn-dark"
+                                    className="btn btn-sm btn-primary"
                                 >
                                     View
                                 </Link>
                             </td>
-                            <td className="Plaque-Id">{plaque.id}</td>
-                            <td className="Plaque-Id">
-                                {plaque.donated_by
-                                    ? plaque.donated_by
-                                    : "Anonymous"}
+                            <td>
+                                <small>{plaque.id}</small>
                             </td>
-                            <td className="Plaque-Location">
-                                <span className="badge bg-success">
-                                    {Math.round(plaque.latitude * 100000) /
-                                        100000}
-                                </span>{" , "}
-                                <span className="badge bg-success">
-                                    {Math.round(plaque.longitude * 100000) /
-                                        100000}
+                            <td>
+                                {plaque.text ? 
+                                    plaque.text.substring(0, 50) + (plaque.text.length > 50 ? "..." : "") : 
+                                    plaque.plaque_text ? 
+                                    plaque.plaque_text.substring(0, 50) + (plaque.plaque_text.length > 50 ? "..." : "") :
+                                    "No text available"}
+                            </td>
+                            <td>
+                                {plaque.confidence ? (
+                                    <span className={`badge ${getConfidenceBadgeClass(plaque.confidence)}`}>
+                                        {plaque.confidence}%
+                                    </span>
+                                ) : (
+                                    <span className="badge badge-brand-secondary">N/A</span>
+                                )}
+                            </td>
+                            <td>
+                                <span className="badge badge-green">
+                                    {Math.round((plaque.location?.latitude || plaque.latitude) * 100000) / 100000}
                                 </span>
+                                {" , "}
+                                <span className="badge badge-green">
+                                    {Math.round((plaque.location?.longitude || plaque.longitude) * 100000) / 100000}
+                                </span>{" "}
+                                <Link to={`/map?query=${plaque.id}`} className="text-brand-green"><i className="bi bi-geo"></i></Link>
                             </td>
                             <td>
                                 <div className="img-thumbnail">
                                     <img
                                         width="80"
-                                        src={plaque.image_url}
+                                        src={plaque.photo?.url || plaque.image_url}
                                         alt=""
+                                        className="img-fluid"
                                     />
                                 </div>
                             </td>
@@ -120,7 +280,6 @@ export default function ListPlaques() {
                     ))}
                 </tbody>
             </table>
-            {loading && <ProgressBar animated now={100} />}
         </div>
     );
 }

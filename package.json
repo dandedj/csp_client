@@ -4,8 +4,6 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@google-cloud/bigquery": "^7.3.0",
-    "@google-cloud/functions-framework": "^3.3.0",
     "@react-google-maps/api": "^2.19.2",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
@@ -13,11 +11,12 @@
     "bootstrap": "^5.3.2",
     "bootstrap-icons": "^1.11.2",
     "firebase": "^10.7.0",
-    "google-map-react": "^2.2.1",
+    "leaflet": "^1.9.4",
     "react": "^18.2.0",
     "react-bootstrap": "^2.9.1",
     "react-dom": "^18.2.0",
     "react-icons": "^4.12.0",
+    "react-leaflet": "^4.2.1",
     "react-router-dom": "^6.20.0",
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4"
@@ -48,7 +47,6 @@
     ]
   },
   "devDependencies": {
-    "@babel/preset-env": "^7.23.3",
-    "babel-cli": "^6.26.0"
+    "@babel/preset-env": "^7.23.3"
   }
 }

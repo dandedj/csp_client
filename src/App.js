@@ -6,7 +6,7 @@ import Header from './components/Common/Header';
 import Footer from './components/Common/Footer';
 import { LoadingProvider } from './components/Common/LoadingProvider';
 import ListPlaques from './components/Plaques/ListPlaques';
-import MapPlaques from './components/Plaques/MapPlaques';
+import LeafletMapPlaques from './components/Plaques/LeafletMapPlaques';
 import PlaqueDetail from './components/Plaques/PlaqueDetail';
 import { SearchProvider } from './components/Plaques/SearchContext';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -52,9 +52,9 @@ function App() {
           <div>
             <Header />
             <Routes>
-              <Route path="/" element={<MapPlaques />} />
+              <Route path="/" element={<LeafletMapPlaques />} />
               <Route path="/list" element={<ListPlaques />} />
-              <Route path="/map" element={<MapPlaques />} />
+              <Route path="/map" element={<LeafletMapPlaques />} />
               <Route path="/detail/:id" element={<PlaqueDetail />} />
             </Routes>
             <Footer />

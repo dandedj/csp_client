@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "csp-plaques"
-  }
+  },
+  "targets": {
+    "csp-plaques": {
+      "hosting": {
+        "csp-plaques": [
+          "csp-plaques"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
