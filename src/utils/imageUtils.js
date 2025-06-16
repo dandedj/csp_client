@@ -7,24 +7,32 @@
  * @param {Object} plaque - The plaque object containing photo information
  * @param {string} size - The desired image size ('small', 'medium', 'large')
  * @param {string} fallbackSize - Fallback size if preferred size is not available
+ * @param {string} imageType - Type of image to get ('cropped', 'original', 'auto')
  * @returns {string} The appropriate image URL
  */
-export const getImageUrl = (plaque, size = 'medium', fallbackSize = 'medium') => {
+export const getImageUrl = (plaque, size = 'medium', fallbackSize = 'medium', imageType = 'auto') => {
   if (!plaque) {
     return null;
   }
 
-  // Check for new multi-size URL structure
-  if (plaque.photo?.urls) {
-    return plaque.photo.urls[size] || 
-           plaque.photo.urls[fallbackSize] || 
-           plaque.photo.urls.medium || 
-           plaque.photo.urls.large || 
-           plaque.photo.urls.small ||
-           plaque.photo.url;
+  // If requesting cropped image specifically and it exists, return it
+  if (imageType === 'cropped' && plaque.cropped_image_url) {
+    return plaque.cropped_image_url;
   }
 
-  // Fallback to legacy single URL structure
+  // If requesting original image specifically, use the actual URL from database
+  if (imageType === 'original') {
+    // Use the actual URL from the database, not the constructed multi-size URLs
+    return plaque.photo?.url || plaque.image_url;
+  }
+
+  // Auto mode: prefer cropped image if available, otherwise use original
+  if (imageType === 'auto' && plaque.cropped_image_url) {
+    return plaque.cropped_image_url;
+  }
+
+  // For all other cases, use the actual URL from the database
+  // The multi-size URLs don't exist - they were a planned feature that wasn't implemented
   return plaque.photo?.url || plaque.image_url;
 };
 
@@ -41,23 +49,19 @@ export const getCroppedImageStyle = (plaque, size = 'medium') => {
 
   const coords = plaque.cropping_coordinates;
   
-  // Calculate the crop dimensions as percentages
-  const cropX = (coords.x || 0) * 100;
-  const cropY = (coords.y || 0) * 100;
-  const cropWidth = (coords.width || 1) * 100;
-  const cropHeight = (coords.height || 1) * 100;
-
-  // Calculate the scale factor to show only the cropped area
-  const scaleX = 100 / cropWidth;
-  const scaleY = 100 / cropHeight;
+  // Use clip-path for precise cropping
+  const x1 = (coords.x || 0) * 100;
+  const y1 = (coords.y || 0) * 100;
+  const x2 = ((coords.x || 0) + (coords.width || 1)) * 100;
+  const y2 = ((coords.y || 0) + (coords.height || 1)) * 100;
 
   return {
-    objectFit: 'none',
-    objectPosition: `-${cropX * scaleX}% -${cropY * scaleY}%`,
-    transform: `scale(${scaleX}, ${scaleY})`,
-    transformOrigin: 'top left',
     width: '100%',
-    height: '100%'
+    height: 'auto',
+    clipPath: `inset(${y1}% ${100 - x2}% ${100 - y2}% ${x1}%)`,
+    // Keep the image at its natural size within the clipped area
+    objectFit: 'cover',
+    objectPosition: 'center'
   };
 };
 
@@ -78,25 +82,21 @@ export const getCroppedImageContainerStyle = (plaque, displayWidth, displayHeigh
   }
 
   const coords = plaque.cropping_coordinates;
-  const aspectRatio = (coords.width || 1) / (coords.height || 1);
   
-  // Maintain aspect ratio while fitting within display dimensions
-  let containerWidth = displayWidth;
-  let containerHeight = displayHeight;
-  
-  if (displayWidth / displayHeight > aspectRatio) {
-    containerWidth = displayHeight * aspectRatio;
-  } else {
-    containerHeight = displayWidth / aspectRatio;
-  }
-
-  return {
-    width: containerWidth,
-    height: containerHeight,
+  // Since we're using clip-path, we need to adjust the container size
+  // to account for the fact that the clipped area is smaller than the full image
+  const containerStyle = {
+    width: displayWidth,
+    height: displayHeight,
     overflow: 'hidden',
     position: 'relative',
-    margin: '0 auto'
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f0f0f0'
   };
+
+  return containerStyle;
 };
 
 /**
@@ -110,6 +110,34 @@ export const hasCroppingCoordinates = (plaque) => {
          typeof plaque.cropping_coordinates.y === 'number' &&
          typeof plaque.cropping_coordinates.width === 'number' &&
          typeof plaque.cropping_coordinates.height === 'number';
+};
+
+/**
+ * Check if plaque has a cropped image URL
+ * @param {Object} plaque - The plaque object
+ * @returns {boolean} True if cropped image URL exists
+ */
+export const hasCroppedImageUrl = (plaque) => {
+  return Boolean(plaque?.cropped_image_url);
+};
+
+/**
+ * Get the cropped image URL if available
+ * @param {Object} plaque - The plaque object
+ * @returns {string|null} Cropped image URL or null
+ */
+export const getCroppedImageUrl = (plaque) => {
+  return plaque?.cropped_image_url || null;
+};
+
+/**
+ * Get the original image URL (never cropped)
+ * @param {Object} plaque - The plaque object
+ * @param {string} size - The desired image size
+ * @returns {string|null} Original image URL
+ */
+export const getOriginalImageUrl = (plaque, size = 'medium') => {
+  return getImageUrl(plaque, size, 'medium', 'original');
 };
 
 /**
@@ -161,24 +189,8 @@ export const getResponsiveImageUrl = (plaque, maxWidth) => {
  * @returns {string} srcSet string for responsive images
  */
 export const getImageSrcSet = (plaque) => {
-  if (!plaque?.photo?.urls) {
-    return null;
-  }
-
-  const urls = plaque.photo.urls;
-  const srcSet = [];
-
-  if (urls.small) {
-    srcSet.push(`${urls.small} 150w`);
-  }
-  if (urls.medium) {
-    srcSet.push(`${urls.medium} 600w`);
-  }
-  if (urls.large) {
-    srcSet.push(`${urls.large} 1200w`);
-  }
-
-  return srcSet.length > 0 ? srcSet.join(', ') : null;
+  // Multi-size URLs are not implemented - return null
+  return null;
 };
 
 /**

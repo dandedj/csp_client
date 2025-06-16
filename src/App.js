@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import './App.css';
@@ -49,14 +48,16 @@ function App() {
       <PageViewLogger />
       <LoadingProvider>
         <SearchProvider>
-          <div>
+          <div className="d-flex flex-column min-vh-100">
             <Header />
-            <Routes>
-              <Route path="/" element={<LeafletMapPlaques />} />
-              <Route path="/list" element={<ListPlaques />} />
-              <Route path="/map" element={<LeafletMapPlaques />} />
-              <Route path="/detail/:id" element={<PlaqueDetail />} />
-            </Routes>
+            <main className="flex-grow-1">
+              <Routes>
+                <Route path="/" element={<LeafletMapPlaques />} />
+                <Route path="/list" element={<ListPlaques />} />
+                <Route path="/map" element={<LeafletMapPlaques />} />
+                <Route path="/detail/:id" element={<PlaqueDetail />} />
+              </Routes>
+            </main>
             <Footer />
           </div>
         </SearchProvider>

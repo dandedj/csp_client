@@ -30,6 +30,12 @@ export class PlaquesService {
             normalizedPlaque.photo = { url: normalizedPlaque.image_url };
         }
         
+        // Ensure cropped_image_url is preserved if it exists
+        if (normalizedPlaque.cropped_image_url) {
+            // Keep the cropped_image_url as is for the new system
+            normalizedPlaque.cropped_image_url = normalizedPlaque.cropped_image_url;
+        }
+        
         // Log for debugging
         console.log('Normalized plaque:', normalizedPlaque);
         

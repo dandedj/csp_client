@@ -3,7 +3,8 @@ import PropTypes from "prop-types";
 import { Card, Row, Col, Badge, ProgressBar } from "react-bootstrap";
 import Plaque from "./Plaque";
 import CroppedImage from "../Common/CroppedImage";
-import { getCardImageUrl, getImageAltText, getImageSrcSet, getImageSizes, getImageUrl, hasCroppingCoordinates } from "../../utils/imageUtils";
+import PlaqueImageComparison from "../Common/PlaqueImageComparison";
+import { getCardImageUrl, getImageAltText, getImageSrcSet, getImageSizes, getImageUrl, hasCroppingCoordinates, hasCroppedImageUrl } from "../../utils/imageUtils";
 
 function PlaqueCard({ plaque }) {
     // Helper to get the plaque text, supporting both field naming conventions
@@ -17,7 +18,8 @@ function PlaqueCard({ plaque }) {
     console.log("PlaqueCard received:", plaque);
 
     const hasCropping = hasCroppingCoordinates(plaque);
-    const imageUrl = getImageUrl(plaque, 'medium');
+    const hasCroppedUrl = hasCroppedImageUrl(plaque);
+    const shouldShowComparison = hasCroppedUrl || hasCropping;
 
     return (
         <>
@@ -39,40 +41,26 @@ function PlaqueCard({ plaque }) {
                         
                         {/* Images Section */}
                         <div className="mb-3">
-                            {hasCropping ? (
-                                <Row>
-                                    <Col md={6}>
-                                        <h6 className="text-muted mb-2">Cropped Image</h6>
-                                        <CroppedImage
-                                            plaque={plaque}
-                                            size="medium"
-                                            width="100%"
-                                            height={250}
-                                            className="rounded"
-                                            context="card"
-                                        />
-                                    </Col>
-                                    <Col md={6}>
-                                        <h6 className="text-muted mb-2">Full Image</h6>
-                                        <img
-                                            src={imageUrl}
-                                            alt={getImageAltText(plaque, 'card')}
-                                            className="img-fluid rounded"
-                                            style={{ width: '100%', height: 250, objectFit: 'cover' }}
-                                            loading="lazy"
-                                        />
-                                    </Col>
-                                </Row>
+                            {shouldShowComparison ? (
+                                <PlaqueImageComparison
+                                    plaque={plaque}
+                                    size="large"
+                                    width="100%"
+                                    height={400}
+                                    showBothWhenAvailable={true}
+                                />
                             ) : (
                                 <div>
-                                    <h6 className="text-muted mb-2">Full Image</h6>
+                                    <h6 className="text-muted mb-2">Plaque Image</h6>
                                     <CroppedImage
                                         plaque={plaque}
-                                        size="medium"
+                                        size="large"
                                         width="100%"
-                                        height={300}
+                                        height="auto"
                                         className="rounded"
-                                        context="card"
+                                        context="detail"
+                                        imageType="original"
+                                        style={{maxHeight: '500px', objectFit: 'contain'}}
                                     />
                                 </div>
                             )}
@@ -179,6 +167,129 @@ function PlaqueCard({ plaque }) {
                                     </Row>
                                 </>
                             )}
+                            
+                            {/* Individual Extractor Results */}
+                            {plaque.individual_extractions && (
+                                <>
+                                    <hr className="my-3" />
+                                    <strong>Individual Extractor Results:</strong>
+                                    
+                                    {/* Consensus Summary */}
+                                    {plaque.extractor_type === 'consensus' && (
+                                        <Row className="mt-2 mb-3">
+                                            <Col>
+                                                <div className="p-2 consensus-summary">
+                                                    <strong>Consensus Analysis:</strong>
+                                                    <div className="mt-1">
+                                                        <span className={`badge ${
+                                                            plaque.confidence_level === 'high' ? 'badge-green' :
+                                                            plaque.confidence_level === 'medium' ? 'badge-purple' : 'badge-brand-secondary'
+                                                        }`}>
+                                                            {plaque.confidence_level?.toUpperCase() || 'UNKNOWN'} CONFIDENCE
+                                                        </span>
+                                                        {plaque.agreement_count && plaque.total_services && (
+                                                            <span className="ms-2 small">
+                                                                {plaque.agreement_count}/{plaque.total_services} services agreed
+                                                            </span>
+                                                        )}
+                                                        {plaque.services_agreed && plaque.services_agreed.length > 0 && (
+                                                            <div className="mt-1 small">
+                                                                <strong>Services agreed:</strong> {plaque.services_agreed.join(', ')}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </Col>
+                                        </Row>
+                                    )}
+                                    
+                                    {/* Individual Service Results */}
+                                    <Row className="mt-2 extractor-results">
+                                        {['claude', 'openai', 'gemini'].map(service => {
+                                            const extraction = plaque.individual_extractions[service];
+                                            // Check if extraction exists and has any data
+                                            if (!extraction || (!extraction.text && !extraction.confidence && !extraction.raw_result)) {
+                                                return (
+                                                    <Col md={4} key={service} className="mb-3">
+                                                        <Card className="h-100">
+                                                            <Card.Header className={`text-center ${
+                                                                service === 'claude' ? 'bg-brand-purple' :
+                                                                service === 'openai' ? 'bg-brand-green' : 'bg-brand-gray-medium'
+                                                            } text-white`}>
+                                                                <strong>{service.charAt(0).toUpperCase() + service.slice(1)}</strong>
+                                                            </Card.Header>
+                                                            <Card.Body className="p-2 text-center text-muted">
+                                                                <small>No data available</small>
+                                                            </Card.Body>
+                                                        </Card>
+                                                    </Col>
+                                                );
+                                            }
+                                            
+                                            return (
+                                                <Col md={4} key={service} className="mb-3">
+                                                    <Card className="h-100">
+                                                        <Card.Header className={`text-center ${
+                                                            service === 'claude' ? 'bg-brand-purple' :
+                                                            service === 'openai' ? 'bg-brand-green' : 'bg-brand-gray-medium'
+                                                        } text-white`}>
+                                                            <strong>{service.charAt(0).toUpperCase() + service.slice(1)}</strong>
+                                                        </Card.Header>
+                                                        <Card.Body className="p-2">
+                                                            {extraction.text && (
+                                                                <>
+                                                                    <Card.Text className="small mb-2">
+                                                                        <strong>Text:</strong><br/>
+                                                                        <span className="font-monospace">{extraction.text}</span>
+                                                                    </Card.Text>
+                                                                </>
+                                                            )}
+                                                            {extraction.confidence !== null && extraction.confidence !== undefined && (
+                                                                <div className="mb-2">
+                                                                    <strong className="small">Confidence:</strong>
+                                                                    <div className="d-flex align-items-center">
+                                                                        <ProgressBar 
+                                                                            now={extraction.confidence} 
+                                                                            label={`${extraction.confidence}%`}
+                                                                            className={extraction.confidence > 80 ? "progress-bar-green" : "progress-bar-purple"}
+                                                                            style={{ width: '100%', maxWidth: '120px' }}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            {extraction.raw_result && (
+                                                                <details className="mt-2">
+                                                                    <summary className="small text-muted" style={{cursor: 'pointer'}}>
+                                                                        Raw Result
+                                                                    </summary>
+                                                                    <pre className="small mt-1 p-1 bg-light rounded" style={{fontSize: '0.7rem', maxHeight: '150px', overflow: 'auto'}}>
+                                                                        {JSON.stringify(extraction.raw_result, null, 2)}
+                                                                    </pre>
+                                                                </details>
+                                                            )}
+                                                        </Card.Body>
+                                                    </Card>
+                                                </Col>
+                                            );
+                                        })}
+                                    </Row>
+                                </>
+                            )}
+                            
+                            {/* Single Extractor Type Display */}
+                            {plaque.extractor_type && plaque.extractor_type !== 'consensus' && (
+                                <>
+                                    <hr className="my-3" />
+                                    <Row>
+                                        <Col>
+                                            <strong>Extraction Method:</strong>
+                                            <span className="ms-2 badge badge-brand-secondary">
+                                                {plaque.extractor_type.toUpperCase()}
+                                            </span>
+                                        </Col>
+                                    </Row>
+                                </>
+                            )}
                         </Card.Text>
                     </Card.Body>
                 </Card>
@@ -213,6 +324,7 @@ PlaqueCard.propTypes = {
         }),
         estimated_distance: PropTypes.number,
         offset_direction: PropTypes.string,
+        cropped_image_url: PropTypes.string,
         cropping_coordinates: PropTypes.shape({
             x: PropTypes.number,
             y: PropTypes.number,
@@ -226,7 +338,13 @@ PlaqueCard.propTypes = {
                 plaque_text: PropTypes.string, // Add support for the alternate field name
                 preview: PropTypes.bool
             })
-        )
+        ),
+        individual_extractions: PropTypes.object,
+        extractor_type: PropTypes.string,
+        confidence_level: PropTypes.string,
+        agreement_count: PropTypes.number,
+        total_services: PropTypes.number,
+        services_agreed: PropTypes.array
     }).isRequired,
 };
 
