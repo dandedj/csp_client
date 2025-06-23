@@ -168,62 +168,231 @@ function PlaqueCard({ plaque }) {
                                 </>
                             )}
                             
-                            {/* Individual Extractor Results */}
-                            {plaque.individual_extractions && (
+                            {/* OCR Analysis Section */}
+                            {plaque.ocr_analysis && (
                                 <>
                                     <hr className="my-3" />
-                                    <strong>Individual Extractor Results:</strong>
+                                    <strong>AI Consensus OCR Analysis:</strong>
                                     
                                     {/* Consensus Summary */}
-                                    {plaque.extractor_type === 'consensus' && (
-                                        <Row className="mt-2 mb-3">
-                                            <Col>
-                                                <div className="p-2 consensus-summary">
-                                                    <strong>Consensus Analysis:</strong>
-                                                    <div className="mt-1">
-                                                        <span className={`badge ${
-                                                            plaque.confidence_level === 'high' ? 'badge-green' :
-                                                            plaque.confidence_level === 'medium' ? 'badge-purple' : 'badge-brand-secondary'
-                                                        }`}>
-                                                            {plaque.confidence_level?.toUpperCase() || 'UNKNOWN'} CONFIDENCE
-                                                        </span>
-                                                        {plaque.agreement_count && plaque.total_services && (
-                                                            <span className="ms-2 small">
-                                                                {plaque.agreement_count}/{plaque.total_services} services agreed
+                                    <Row className="mt-2 mb-3">
+                                        <Col>
+                                            <div className="p-3 bg-light rounded">
+                                                <Row>
+                                                    <Col md={6}>
+                                                        <div className="mb-2">
+                                                            <strong>Method:</strong>
+                                                            <span className="ms-2 badge badge-brand-secondary">
+                                                                {plaque.ocr_analysis.method?.toUpperCase() || 'UNKNOWN'}
                                                             </span>
-                                                        )}
-                                                        {plaque.services_agreed && plaque.services_agreed.length > 0 && (
-                                                            <div className="mt-1 small">
-                                                                <strong>Services agreed:</strong> {plaque.services_agreed.join(', ')}
+                                                        </div>
+                                                        <div className="mb-2">
+                                                            <strong>Services Used:</strong>
+                                                            <div className="mt-1">
+                                                                {plaque.ocr_analysis.services_used?.map(service => (
+                                                                    <span key={service} className={`badge me-1 ${
+                                                                        service === 'tesseract' ? 'badge-brand-secondary' :
+                                                                        service === 'openai' ? 'badge-brand-green' :
+                                                                        service === 'claude' ? 'badge-brand-purple' :
+                                                                        service === 'google_vision' ? 'badge-purple' : 'badge-brand-secondary'
+                                                                    }`}>
+                                                                        {service}
+                                                                    </span>
+                                                                )) || <span className="text-muted">No services data</span>}
+                                                            </div>
+                                                        </div>
+                                                    </Col>
+                                                    <Col md={6}>
+                                                        <div className="mb-2">
+                                                            <strong>Consensus Score:</strong>
+                                                            <span className="ms-2 badge badge-green">
+                                                                {plaque.ocr_analysis.consensus_score?.toFixed(1) || 'N/A'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="mb-2">
+                                                            <strong>Processing Time:</strong>
+                                                            <span className="ms-2 badge badge-brand-secondary">
+                                                                {plaque.ocr_analysis.processing_time?.toFixed(2) || 'N/A'}s
+                                                            </span>
+                                                        </div>
+                                                        {plaque.ocr_analysis.timestamp && (
+                                                            <div className="mb-2">
+                                                                <strong>Processed:</strong>
+                                                                <div className="small text-muted">
+                                                                    {new Date(plaque.ocr_analysis.timestamp).toLocaleString()}
+                                                                </div>
                                                             </div>
                                                         )}
+                                                    </Col>
+                                                </Row>
+                                            </div>
+                                        </Col>
+                                    </Row>
+                                    
+                                    {/* Individual Service Results */}
+                                    {plaque.individual_extractions && (
+                                        <Row className="mt-2 extractor-results">
+                                            {['tesseract', 'openai', 'claude', 'google_vision'].map(service => {
+                                                const extraction = plaque.individual_extractions[service];
+                                                // Check if extraction exists and has any data
+                                                if (!extraction || (!extraction.text && extraction.confidence === undefined)) {
+                                                    return (
+                                                        <Col md={3} key={service} className="mb-3">
+                                                            <Card className="h-100">
+                                                                <Card.Header className={`text-center ${
+                                                                    service === 'tesseract' ? 'bg-brand-secondary' :
+                                                                    service === 'claude' ? 'bg-brand-purple' :
+                                                                    service === 'openai' ? 'bg-brand-green' : 
+                                                                    service === 'google_vision' ? 'bg-purple' : 'bg-brand-gray-medium'
+                                                                } text-white`}>
+                                                                    <strong>{service === 'google_vision' ? 'Google Vision' : service.charAt(0).toUpperCase() + service.slice(1)}</strong>
+                                                                </Card.Header>
+                                                                <Card.Body className="p-2 text-center text-muted">
+                                                                    <small>No data available</small>
+                                                                </Card.Body>
+                                                            </Card>
+                                                        </Col>
+                                                    );
+                                                }
+                                                
+                                                return (
+                                                    <Col md={3} key={service} className="mb-3">
+                                                        <Card className="h-100">
+                                                            <Card.Header className={`text-center ${
+                                                                service === 'tesseract' ? 'bg-brand-secondary' :
+                                                                service === 'claude' ? 'bg-brand-purple' :
+                                                                service === 'openai' ? 'bg-brand-green' : 
+                                                                service === 'google_vision' ? 'bg-purple' : 'bg-brand-gray-medium'
+                                                            } text-white`}>
+                                                                <strong>{service === 'google_vision' ? 'Google Vision' : service.charAt(0).toUpperCase() + service.slice(1)}</strong>
+                                                            </Card.Header>
+                                                            <Card.Body className="p-2">
+                                                                {extraction.text && (
+                                                                    <>
+                                                                        <Card.Text className="small mb-2">
+                                                                            <strong>Text:</strong><br/>
+                                                                            <span className="font-monospace" style={{fontSize: '0.8rem'}}>{extraction.text}</span>
+                                                                        </Card.Text>
+                                                                    </>
+                                                                )}
+                                                                {extraction.confidence !== null && extraction.confidence !== undefined && (
+                                                                    <div className="mb-2">
+                                                                        <strong className="small">Confidence:</strong>
+                                                                        <div className="d-flex align-items-center">
+                                                                            <ProgressBar 
+                                                                                now={extraction.confidence} 
+                                                                                label={`${extraction.confidence}%`}
+                                                                                className={extraction.confidence > 80 ? "progress-bar-green" : "progress-bar-purple"}
+                                                                                style={{ width: '100%', maxWidth: '100px' }}
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </Card.Body>
+                                                        </Card>
+                                                    </Col>
+                                                );
+                                            })}
+                                        </Row>
+                                    )}
+                                    
+                                    {/* Agreement Matrix */}
+                                    {plaque.ocr_analysis.agreement_matrix && (
+                                        <Row className="mt-3">
+                                            <Col>
+                                                <details>
+                                                    <summary className="small text-muted mb-2" style={{cursor: 'pointer'}}>
+                                                        <strong>Service Agreement Matrix</strong>
+                                                    </summary>
+                                                    <div className="p-2 bg-light rounded">
+                                                        <pre className="small mb-0" style={{fontSize: '0.7rem', maxHeight: '200px', overflow: 'auto'}}>
+                                                            {JSON.stringify(plaque.ocr_analysis.agreement_matrix, null, 2)}
+                                                        </pre>
                                                     </div>
-                                                </div>
+                                                </details>
                                             </Col>
                                         </Row>
                                     )}
+                                </>
+                            )}
+                            
+                            {/* YOLO Detection Analysis */}
+                            {plaque.yolo_detection && (
+                                <>
+                                    <hr className="my-3" />
+                                    <strong>Object Detection Analysis:</strong>
+                                    <Row className="mt-2">
+                                        <Col>
+                                            <div className="p-2 bg-light rounded">
+                                                <Row>
+                                                    <Col md={6}>
+                                                        {plaque.yolo_detection.bbox && (
+                                                            <div className="mb-2">
+                                                                <strong>Bounding Box:</strong>
+                                                                <div className="small">
+                                                                    <span className="badge badge-brand-secondary me-1">
+                                                                        x1: {Math.round(plaque.yolo_detection.bbox.x1)}
+                                                                    </span>
+                                                                    <span className="badge badge-brand-secondary me-1">
+                                                                        y1: {Math.round(plaque.yolo_detection.bbox.y1)}
+                                                                    </span>
+                                                                    <span className="badge badge-brand-secondary me-1">
+                                                                        x2: {Math.round(plaque.yolo_detection.bbox.x2)}
+                                                                    </span>
+                                                                    <span className="badge badge-brand-secondary">
+                                                                        y2: {Math.round(plaque.yolo_detection.bbox.y2)}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        {plaque.yolo_detection.confidence && (
+                                                            <div className="mb-2">
+                                                                <strong>Detection Confidence:</strong>
+                                                                <div className="d-flex align-items-center mt-1">
+                                                                    <ProgressBar 
+                                                                        now={plaque.yolo_detection.confidence * 100} 
+                                                                        label={`${(plaque.yolo_detection.confidence * 100).toFixed(1)}%`}
+                                                                        className="progress-bar-green"
+                                                                        style={{ width: '100%', maxWidth: '150px' }}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </Col>
+                                                    <Col md={6}>
+                                                        {plaque.yolo_detection.dimensions && (
+                                                            <div className="mb-2">
+                                                                <strong>Plaque Dimensions:</strong>
+                                                                <div className="small">
+                                                                    <span className="badge badge-purple me-1">
+                                                                        {plaque.yolo_detection.dimensions.width} × {plaque.yolo_detection.dimensions.height} px
+                                                                    </span>
+                                                                    <span className="badge badge-purple">
+                                                                        {plaque.yolo_detection.dimensions.aspect_ratio?.toFixed(2)} ratio
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </Col>
+                                                </Row>
+                                            </div>
+                                        </Col>
+                                    </Row>
+                                </>
+                            )}
+                            
+                            {/* Legacy Individual Extractor Results (fallback) */}
+                            {plaque.individual_extractions && !plaque.ocr_analysis && (
+                                <>
+                                    <hr className="my-3" />
+                                    <strong>Legacy Extractor Results:</strong>
                                     
                                     {/* Individual Service Results */}
                                     <Row className="mt-2 extractor-results">
                                         {['claude', 'openai', 'gemini'].map(service => {
                                             const extraction = plaque.individual_extractions[service];
-                                            // Check if extraction exists and has any data
                                             if (!extraction || (!extraction.text && !extraction.confidence && !extraction.raw_result)) {
-                                                return (
-                                                    <Col md={4} key={service} className="mb-3">
-                                                        <Card className="h-100">
-                                                            <Card.Header className={`text-center ${
-                                                                service === 'claude' ? 'bg-brand-purple' :
-                                                                service === 'openai' ? 'bg-brand-green' : 'bg-brand-gray-medium'
-                                                            } text-white`}>
-                                                                <strong>{service.charAt(0).toUpperCase() + service.slice(1)}</strong>
-                                                            </Card.Header>
-                                                            <Card.Body className="p-2 text-center text-muted">
-                                                                <small>No data available</small>
-                                                            </Card.Body>
-                                                        </Card>
-                                                    </Col>
-                                                );
+                                                return null;
                                             }
                                             
                                             return (
@@ -237,12 +406,10 @@ function PlaqueCard({ plaque }) {
                                                         </Card.Header>
                                                         <Card.Body className="p-2">
                                                             {extraction.text && (
-                                                                <>
-                                                                    <Card.Text className="small mb-2">
-                                                                        <strong>Text:</strong><br/>
-                                                                        <span className="font-monospace">{extraction.text}</span>
-                                                                    </Card.Text>
-                                                                </>
+                                                                <Card.Text className="small mb-2">
+                                                                    <strong>Text:</strong><br/>
+                                                                    <span className="font-monospace">{extraction.text}</span>
+                                                                </Card.Text>
                                                             )}
                                                             {extraction.confidence !== null && extraction.confidence !== undefined && (
                                                                 <div className="mb-2">
@@ -256,16 +423,6 @@ function PlaqueCard({ plaque }) {
                                                                         />
                                                                     </div>
                                                                 </div>
-                                                            )}
-                                                            {extraction.raw_result && (
-                                                                <details className="mt-2">
-                                                                    <summary className="small text-muted" style={{cursor: 'pointer'}}>
-                                                                        Raw Result
-                                                                    </summary>
-                                                                    <pre className="small mt-1 p-1 bg-light rounded" style={{fontSize: '0.7rem', maxHeight: '150px', overflow: 'auto'}}>
-                                                                        {JSON.stringify(extraction.raw_result, null, 2)}
-                                                                    </pre>
-                                                                </details>
                                                             )}
                                                         </Card.Body>
                                                     </Card>

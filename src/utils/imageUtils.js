@@ -15,9 +15,14 @@ export const getImageUrl = (plaque, size = 'medium', fallbackSize = 'medium', im
     return null;
   }
 
-  // If requesting cropped image specifically and it exists, return it
-  if (imageType === 'cropped' && plaque.cropped_image_url) {
-    return plaque.cropped_image_url;
+  // If requesting cropped image specifically, prioritize high-res plaque image, then cropped image
+  if (imageType === 'cropped') {
+    if (plaque.photo?.plaque_url) {
+      return plaque.photo.plaque_url;
+    }
+    if (plaque.cropped_image_url) {
+      return plaque.cropped_image_url;
+    }
   }
 
   // If requesting original image specifically, use the actual URL from database
@@ -26,9 +31,14 @@ export const getImageUrl = (plaque, size = 'medium', fallbackSize = 'medium', im
     return plaque.photo?.url || plaque.image_url;
   }
 
-  // Auto mode: prefer cropped image if available, otherwise use original
-  if (imageType === 'auto' && plaque.cropped_image_url) {
-    return plaque.cropped_image_url;
+  // Auto mode: prefer high-res plaque image, then cropped image, otherwise use original
+  if (imageType === 'auto') {
+    if (plaque.photo?.plaque_url) {
+      return plaque.photo.plaque_url;
+    }
+    if (plaque.cropped_image_url) {
+      return plaque.cropped_image_url;
+    }
   }
 
   // For all other cases, use the actual URL from the database

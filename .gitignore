@@ -4,4 +4,6 @@ node_modules/
 /.idea
 .DS_Store
 firebase-debug.log
-```
+
+# Temporary scripts directory
+tmp/
