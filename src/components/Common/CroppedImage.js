@@ -57,7 +57,7 @@ const CroppedImage = ({
   const hasCropping = !isUsingCroppedUrl && hasCroppingCoordinates(plaque);
   
   // Debug logging
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV) {
     console.log('CroppedImage debug:', {
       plaqueId: plaque?.id,
       imageType,

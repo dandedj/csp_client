@@ -1,154 +1,117 @@
 import { PlaquesService } from '../PlaquesService';
-import config from '../../config';
+import config from '../../config.json';
 
-const plaquesService = new PlaquesService();
+const service = new PlaquesService();
 
-test('getPlaques should call the Google Cloud function and return the plaques', async () => {
-  // Mock the fetch function and its response
-  const mockResponse = {
-    ok: true,
-    json: jest.fn().mockResolvedValue(['plaque1', 'plaque2']),
-  };
-  global.fetch = jest.fn().mockResolvedValue(mockResponse);
-
-  // Call the getPlaques method
-  const result = await plaquesService.getPlaques();
-
-  // Assert that the fetch function was called with the correct URL
-  expect(fetch).toHaveBeenCalledWith(config.api.searchPlaquesUrl);
-
-  // Assert that the response was converted to JSON
-  expect(mockResponse.json).toHaveBeenCalled();
-
-  // Assert that the result is the expected plaques
-  expect(result).toEqual(['plaque1', 'plaque2']);
+const mockFetchResponse = (data, ok = true, status = 200) => ({
+  ok,
+  status,
+  statusText: ok ? 'OK' : 'Error',
+  json: vi.fn().mockResolvedValue(data)
 });
 
-test('getPlaques should handle network errors', async () => {
-  // Mock the fetch function and its response
-  const mockResponse = {
-    ok: false,
-  };
-  global.fetch = jest.fn().mockResolvedValue(mockResponse);
-
-  // Call the getPlaques method
-  const result = await plaquesService.getPlaques();
-
-  // Assert that the fetch function was called with the correct URL
-  expect(fetch).toHaveBeenCalledWith(config.api.searchPlaquesUrl);
-
-  // Assert that an error was thrown
-  expect(result).toBeInstanceOf(Error);
-});test('getPlaqueById should call the Google Cloud function with the correct URL and return the plaque', async () => {
-  // Mock the fetch function and its response
-  const mockResponse = {
-    ok: true,
-    json: jest.fn().mockResolvedValue('plaque'),
-  };
-  global.fetch = jest.fn().mockResolvedValue(mockResponse);
-
-  // Call the getPlaqueById method
-  const result = await plaquesService.getPlaqueById('123');
-
-  // Assert that the fetch function was called with the correct URL
-  expect(fetch).toHaveBeenCalledWith(`${config.api.plaqueDetailUrl}?id=123`);
-
-  // Assert that the response was converted to JSON
-  expect(mockResponse.json).toHaveBeenCalled();
-
-  // Assert that the result is the expected plaque
-  expect(result).toEqual('plaque');
+beforeEach(() => {
+  global.fetch = vi.fn();
+  vi.spyOn(console, 'log').mockImplementation(() => {});
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+  vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
-test('getPlaqueById should handle network errors', async () => {
-  // Mock the fetch function and its response
-  const mockResponse = {
-    ok: false,
-  };
-  global.fetch = jest.fn().mockResolvedValue(mockResponse);
-
-  // Call the getPlaqueById method
-  const result = await plaquesService.getPlaqueById('123');
-
-  // Assert that the fetch function was called with the correct URL
-  expect(fetch).toHaveBeenCalledWith(`${config.api.plaqueDetailUrl}?id=123`);
-
-  // Assert that an error was thrown
-  expect(result).toBeInstanceOf(Error);
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
-test('getPlaques should call the Google Cloud function and return the plaques', async () => {
-  // Mock the fetch function and its response
-  const mockResponse = {
-    ok: true,
-    json: jest.fn().mockResolvedValue(['plaque1', 'plaque2']),
-  };
-  global.fetch = jest.fn().mockResolvedValue(mockResponse);
+describe('PlaquesService.getPlaques (search)', () => {
+  it('builds the search URL with query and pagination params', async () => {
+    fetch.mockResolvedValue(
+      mockFetchResponse({ plaques: [], total_count: 0, filtered_count: 0 })
+    );
 
-  // Call the getPlaques method
-  const result = await plaquesService.getPlaques();
+    await service.getPlaques('memorial', 50, 100, 0, 'consensus');
 
-  // Assert that the fetch function was called with the correct URL
-  expect(fetch).toHaveBeenCalledWith(config.api.searchPlaquesUrl);
+    const calledUrl = fetch.mock.calls[0][0];
+    expect(calledUrl).toBe(
+      `${config.api.searchPlaquesUrl}?q=memorial&confidence_threshold=50&limit=100&offset=0&sort_by=consensus`
+    );
+  });
 
-  // Assert that the response was converted to JSON
-  expect(mockResponse.json).toHaveBeenCalled();
+  it('normalizes plaques and returns pagination metadata', async () => {
+    fetch.mockResolvedValue(
+      mockFetchResponse({
+        plaques: [{ id: '1', plaque_text: 'Hello' }],
+        total_count: 5,
+        filtered_count: 1
+      })
+    );
 
-  // Assert that the result is the expected plaques
-  expect(result).toEqual(['plaque1', 'plaque2']);
+    const result = await service.getPlaques('hello');
+
+    expect(result.plaques).toHaveLength(1);
+    // plaque_text should be normalized into a text field
+    expect(result.plaques[0].text).toBe('Hello');
+    expect(result.totalCount).toBe(5);
+    expect(result.filteredCount).toBe(1);
+  });
+
+  it('returns an empty result set on a non-ok response instead of throwing', async () => {
+    fetch.mockResolvedValue(mockFetchResponse({ message: 'boom' }, false, 500));
+
+    const result = await service.getPlaques('anything');
+
+    expect(result.plaques).toEqual([]);
+    expect(result.totalCount).toBe(0);
+  });
 });
 
-test('getPlaques should handle network errors', async () => {
-  // Mock the fetch function and its response
-  const mockResponse = {
-    ok: false,
-  };
-  global.fetch = jest.fn().mockResolvedValue(mockResponse);
+describe('PlaquesService.getAllPlaques (list)', () => {
+  it('builds the list URL with default params', async () => {
+    fetch.mockResolvedValue(mockFetchResponse({ plaques: [], total_count: 0 }));
 
-  // Call the getPlaques method
-  const result = await plaquesService.getPlaques();
+    await service.getAllPlaques();
 
-  // Assert that the fetch function was called with the correct URL
-  expect(fetch).toHaveBeenCalledWith(config.api.searchPlaquesUrl);
+    const calledUrl = fetch.mock.calls[0][0];
+    expect(calledUrl).toBe(
+      `${config.api.listPlaquesUrl}?confidence_threshold=50&grouped=false&limit=500&offset=0&sort_by=consensus`
+    );
+  });
 
-  // Assert that an error was thrown
-  expect(result).toBeInstanceOf(Error);
+  it('appends viewport bounds when provided', async () => {
+    fetch.mockResolvedValue(mockFetchResponse({ plaques: [], total_count: 0 }));
+
+    const bounds = { north: 1, south: 2, east: 3, west: 4 };
+    await service.getAllPlaques(50, false, 500, 0, bounds);
+
+    const calledUrl = fetch.mock.calls[0][0];
+    expect(calledUrl).toContain('&north=1&south=2&east=3&west=4');
+  });
 });
 
-test('getPlaques should call the Google Cloud function with query parameter and return the plaques', async () => {
-  // Mock the fetch function and its response
-  const mockResponse = {
-    ok: true,
-    json: jest.fn().mockResolvedValue(['plaque1', 'plaque2']),
-  };
-  global.fetch = jest.fn().mockResolvedValue(mockResponse);
+describe('PlaquesService.getPlaqueById (detail)', () => {
+  it('requests the detail URL using the id path segment', async () => {
+    fetch.mockResolvedValue(mockFetchResponse({ id: '123', plaque_text: 'Detail' }));
 
-  // Call the getPlaques method with a query parameter
-  const result = await PlaquesService.getPlaques('search query');
+    const result = await service.getPlaqueById('123');
 
-  // Assert that the fetch function was called with the correct URL including the query parameter
-  expect(fetch).toHaveBeenCalledWith(`${config.api.searchPlaquesUrl}?text=search query`);
+    const calledUrl = fetch.mock.calls[0][0];
+    expect(calledUrl).toBe(`${config.api.plaqueDetailUrl}/123`);
+    expect(result.text).toBe('Detail');
+  });
 
-  // Assert that the response was converted to JSON
-  expect(mockResponse.json).toHaveBeenCalled();
-
-  // Assert that the result is the expected plaques
-  expect(result).toEqual(['plaque1', 'plaque2']);
+  it('returns null when no id is provided', async () => {
+    const result = await service.getPlaqueById();
+    expect(result).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
 });
 
-test('getPlaques should log an error message when there is a problem with the fetch operation', async () => {
-  // Mock the fetch function to throw an error
-  global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+describe('PlaquesService.normalizeFields', () => {
+  it('collapses an array text field to its first element', () => {
+    const normalized = service.normalizeFields({ id: '1', text: ['first', 'second'] });
+    expect(normalized.text).toBe('first');
+  });
 
-  // Call the getPlaques method
-  const result = await PlaquesService.getPlaques();
-
-  // Assert that the fetch function was called with the correct URL
-  expect(fetch).toHaveBeenCalledWith(config.api.searchPlaquesUrl);
-
-  // Assert that an error message was logged
-  expect(console.error).toHaveBeenCalledWith('There has been a problem with your fetch operation:', new Error('Network error'));
-
-  // Assert that the result is undefined
-  expect(result).toBeUndefined();
+  it('maps image_url to a photo object', () => {
+    const normalized = service.normalizeFields({ id: '1', image_url: 'https://x/y.jpg' });
+    expect(normalized.photo).toEqual({ url: 'https://x/y.jpg' });
+  });
 });

@@ -13,7 +13,7 @@ import { getAnalytics, logEvent } from "firebase/analytics";
 import { initializeApp } from "firebase/app";
 
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: "csp-plaques.firebaseapp.com",
   projectId: "csp-plaques",
   storageBucket: "csp-plaques.appspot.com",

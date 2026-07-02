@@ -3,7 +3,6 @@ import { ProgressBar, Toast, Badge, Form, Button } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { PlaquesService } from "../../services/PlaquesService";
 import { SearchContext } from "./SearchContext";
-import { BiGeo } from "react-icons/bi";
 import CroppedImage from "../Common/CroppedImage";
 import { getThumbnailUrl, getImageAltText, getImageSrcSet, getImageSizes } from "../../utils/imageUtils";
 import { calculateAIConsensusScore } from "../../utils/textSimilarity";
@@ -200,7 +199,7 @@ export default function ListPlaques() {
                     {plaques.map((plaque, index) => {
                             const lat = plaque.location?.latitude || plaque.latitude;
                             const lng = plaque.location?.longitude || plaque.longitude;
-                            const mapPreviewUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=16&size=120x80&markers=color:purple%7C${lat},${lng}&key=${process.env.REACT_APP_MAPS_API_KEY}`;
+                            const mapPreviewUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=16&size=120x80&markers=color:purple%7C${lat},${lng}&key=${import.meta.env.VITE_MAPS_API_KEY}`;
                             
                             return (
                                 <tr key={index}>

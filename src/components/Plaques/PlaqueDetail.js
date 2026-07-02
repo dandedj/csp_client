@@ -86,7 +86,7 @@ const PlaqueDetail = () => {
                 </Alert>
                 
                 {/* Show raw response for debugging */}
-                {process.env.NODE_ENV === 'development' && rawResponse && (
+                {import.meta.env.DEV && rawResponse && (
                     <div className="mt-4">
                         <h5>Raw API Response (Debug):</h5>
                         <pre className="bg-light p-3">
@@ -113,7 +113,7 @@ const PlaqueDetail = () => {
                 </Alert>
                 
                 {/* Show raw response for debugging */}
-                {process.env.NODE_ENV === 'development' && rawResponse && (
+                {import.meta.env.DEV && rawResponse && (
                     <div className="mt-4">
                         <h5>Raw API Response (Debug):</h5>
                         <pre className="bg-light p-3">
@@ -141,7 +141,7 @@ const PlaqueDetail = () => {
             <PlaqueCard plaque={plaque} />
             
             {/* Show raw response for debugging */}
-            {process.env.NODE_ENV === 'development' && (
+            {import.meta.env.DEV && (
                 <div className="mt-4">
                     <h5>Debug Info:</h5>
                     <pre className="bg-light p-3">

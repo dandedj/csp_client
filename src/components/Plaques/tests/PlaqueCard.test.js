@@ -1,25 +1,29 @@
 import { render, screen } from '@testing-library/react';
 import PlaqueCard from '../PlaqueCard';
 
-test('renders plaque information', () => {
+// Smoke test: render the card with a minimal plaque and confirm the core
+// text content and image render without crashing.
+test('renders the plaque text and image', () => {
   const plaque = {
-    id: "abc",
-    latitude: 123.456,
-    longitude: 789.012,
-    bearing: 90,
-    donated_by: 'John Doe',
-    image_url: 'https://example.com/image.jpg',
-    text: ['Text 1', 'Text 2']
+    id: 'abc',
+    text: 'In loving memory of a survivor',
+    photo: { url: 'https://example.com/plaque.jpg' }
   };
 
   render(<PlaqueCard plaque={plaque} />);
 
-  // Check if plaque information is rendered correctly
-  expect(screen.getByText(/Plaque Information/i)).toBeInTheDocument();
-  expect(screen.getByText(/Id:/i)).toBeInTheDocument();
-  expect(screen.getByText(/Location:/i)).toBeInTheDocument();
-  expect(screen.getByText(/Donated by:/i)).toBeInTheDocument();
-  expect(screen.getByAltText('')).toBeInTheDocument();
-  expect(screen.getByText(/Text 1/i)).toBeInTheDocument();
-  expect(screen.getByText(/Text 2/i)).toBeInTheDocument();
+  expect(screen.getByText('Plaque Text')).toBeInTheDocument();
+  expect(screen.getByText('In loving memory of a survivor')).toBeInTheDocument();
+  expect(screen.getByRole('img')).toBeInTheDocument();
+});
+
+test('falls back to a default message when no text is present', () => {
+  const plaque = {
+    id: 'def',
+    photo: { url: 'https://example.com/plaque.jpg' }
+  };
+
+  render(<PlaqueCard plaque={plaque} />);
+
+  expect(screen.getByText('No text available')).toBeInTheDocument();
 });
