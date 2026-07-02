@@ -1,158 +1,207 @@
-import React, { useEffect, useState } from "react";
-import { Spinner, Alert } from "react-bootstrap";
-import { useParams, Link } from "react-router-dom";
-import { PlaquesService } from "../../services/PlaquesService";
-import PlaqueCard from "./PlaqueCard";
+import { Suspense, lazy, useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import {
+  Container,
+  Row,
+  Col,
+  Accordion,
+  Button,
+  Placeholder
+} from 'react-bootstrap';
+import { plaquesService } from '../../services/PlaquesService';
+import {
+  useGeolocation,
+  haversineMeters,
+  formatDistance
+} from '../../hooks/useGeolocation';
+import InscriptionPanel from './InscriptionPanel';
+import PlaqueImage, { plaqueText } from '../Common/PlaqueImage';
 
-const PlaqueDetail = () => {
-    const [plaque, setPlaque] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [rawResponse, setRawResponse] = useState(null);
+const FindInPark = lazy(() => import('./FindInPark'));
 
-    const { id } = useParams();
-
-    useEffect(() => {
-        setLoading(true);
-        const plaquesService = new PlaquesService();
-
-        plaquesService
-            .getPlaqueById(id)
-            .then((res) => {
-                // Log the raw response for debugging
-                console.log('Raw API response:', res);
-                setRawResponse(res);
-                
-                // Handle different response formats more gracefully
-                if (Array.isArray(res)) {
-                    // If it's an array with items, use the first one
-                    if (res.length > 0) {
-                        console.log('Using first item from array response');
-                        setPlaque(res[0]);
-                    } else {
-                        console.warn('API returned empty array');
-                        setError("No plaque found with the specified ID");
-                    }
-                } else if (res && typeof res === 'object') {
-                    // If it's a non-null object, use it directly
-                    console.log('Using object response directly');
-                    setPlaque(res);
-                } else if (res === null) {
-                    // Handle null response
-                    console.warn('API returned null');
-                    setError("No plaque found with the specified ID");
-                } else {
-                    // Handle other unexpected formats
-                    console.error('Unexpected API response format:', typeof res);
-                    setError(`Invalid data format received from API: ${typeof res}`);
-                }
-                
-                setLoading(false);
-            })
-            .catch((error) => {
-                console.error(
-                    "There has been a problem with your fetch operation:",
-                    error
-                );
-                setError("Failed to load plaque details: " + error.message);
-                setRawResponse(null);
-                setLoading(false);
-            });
-    }, [id]);
-
-    if (loading) {
-        return (
-            <div className="container mt-4">
-                <div className="d-flex justify-content-center">
-                    <Spinner animation="border" className="spinner-border-purple" />
-                    <span className="ms-2">Loading plaque details...</span>
-                </div>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="container mt-4">
-                <Alert variant="danger">
-                    <Alert.Heading>Error Loading Plaque</Alert.Heading>
-                    <p>{error}</p>
-                    <hr />
-                    <div className="d-flex justify-content-end">
-                        <Link to="/list" className="btn btn-outline-primary">
-                            Return to Plaque List
-                        </Link>
-                    </div>
-                </Alert>
-                
-                {/* Show raw response for debugging */}
-                {import.meta.env.DEV && rawResponse && (
-                    <div className="mt-4">
-                        <h5>Raw API Response (Debug):</h5>
-                        <pre className="bg-light p-3">
-                            {JSON.stringify(rawResponse, null, 2)}
-                        </pre>
-                    </div>
-                )}
-            </div>
-        );
-    }
-
-    if (!plaque) {
-        return (
-            <div className="container mt-4">
-                <Alert variant="warning">
-                    <Alert.Heading>Plaque Not Found</Alert.Heading>
-                    <p>The requested plaque could not be found. It may have been removed or the ID is invalid.</p>
-                    <hr />
-                    <div className="d-flex justify-content-end">
-                        <Link to="/list" className="btn btn-outline-primary">
-                            Return to Plaque List
-                        </Link>
-                    </div>
-                </Alert>
-                
-                {/* Show raw response for debugging */}
-                {import.meta.env.DEV && rawResponse && (
-                    <div className="mt-4">
-                        <h5>Raw API Response (Debug):</h5>
-                        <pre className="bg-light p-3">
-                            {JSON.stringify(rawResponse, null, 2)}
-                        </pre>
-                    </div>
-                )}
-            </div>
-        );
-    }
-
-    return (
-        <div className="container mt-4">
-            <div className="d-flex justify-content-between align-items-center mb-4">
-                <h1>Plaque Detail</h1>
-                <div>
-                    <Link to="/list" className="btn btn-outline-primary me-2">
-                        BACK TO LIST
-                    </Link>
-                    <Link to={`/map?query=${id}`} className="btn btn-primary">
-                        VIEW ON MAP
-                    </Link>
-                </div>
-            </div>
-            <PlaqueCard plaque={plaque} />
-            
-            {/* Show raw response for debugging */}
-            {import.meta.env.DEV && (
-                <div className="mt-4">
-                    <h5>Debug Info:</h5>
-                    <pre className="bg-light p-3">
-                        <strong>ID from URL:</strong> {id}<br/>
-                        <strong>Raw plaque object:</strong><br/>
-                        {JSON.stringify(plaque, null, 2)}
-                    </pre>
-                </div>
-            )}
-        </div>
-    );
+const SERVICE_LABELS = {
+  openai: 'OpenAI',
+  claude: 'Claude',
+  google_vision: 'Google Vision',
+  gemini: 'Gemini'
 };
 
-export default PlaqueDetail;
+function titleFor(plaque) {
+  const text = plaqueText(plaque);
+  if (!text) return 'Plaque';
+  const firstLine = text.split('\n')[0].trim();
+  return firstLine.length > 60 ? `${firstLine.slice(0, 60).trimEnd()}…` : firstLine;
+}
+
+function TranscriptionDetails({ plaque }) {
+  const extractions = plaque.individual_extractions || {};
+  const analysis = plaque.ocr_analysis || {};
+  const entries = Object.entries(extractions);
+
+  return (
+    <Accordion className="detail-accordion">
+      <Accordion.Item eventKey="0">
+        <Accordion.Header>Transcription details</Accordion.Header>
+        <Accordion.Body>
+          {typeof analysis.consensus_score === 'number' && (
+            <p className="wayfinding detail-accordion__meta">
+              Consensus {Math.round(analysis.consensus_score * 100)}%
+              {Array.isArray(analysis.services_used) && analysis.services_used.length > 0 &&
+                ` · ${analysis.services_used.length} services`}
+            </p>
+          )}
+          {entries.length > 0 ? (
+            <dl className="service-results">
+              {entries.map(([service, result]) => (
+                <div key={service} className="service-results__item">
+                  <dt>{SERVICE_LABELS[service] || service}</dt>
+                  <dd>
+                    {result && result.text ? (
+                      result.text
+                    ) : (
+                      <span className="text-muted">No text found</span>
+                    )}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          ) : (
+            <p className="text-muted mb-0">No per-service transcription is available.</p>
+          )}
+        </Accordion.Body>
+      </Accordion.Item>
+    </Accordion>
+  );
+}
+
+export default function PlaqueDetail() {
+  const { id } = useParams();
+  const { location } = useGeolocation();
+  const [plaque, setPlaque] = useState(null);
+  const [status, setStatus] = useState('loading'); // 'loading' | 'ready' | 'missing' | 'error'
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    setStatus('loading');
+    document.title = 'Plaque · Cancer Survivors Park';
+    plaquesService
+      .getPlaque(id, { signal: controller.signal })
+      .then((result) => {
+        if (!active) return;
+        if (!result) {
+          setStatus('missing');
+          return;
+        }
+        setPlaque(result);
+        setStatus('ready');
+      })
+      .catch((error) => {
+        if (!active || error.name === 'AbortError') return;
+        setStatus('error');
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [id]);
+
+  useEffect(() => {
+    if (status === 'ready' && plaque) {
+      document.title = `${titleFor(plaque)} · Cancer Survivors Park`;
+    }
+  }, [status, plaque]);
+
+  if (status === 'loading') {
+    return (
+      <Container className="detail-page py-4">
+        <Placeholder as="div" animation="glow" className="inscription inscription--hero">
+          <Placeholder xs={8} /> <Placeholder xs={6} /> <Placeholder xs={7} />
+        </Placeholder>
+      </Container>
+    );
+  }
+
+  if (status === 'error' || status === 'missing') {
+    return (
+      <Container className="detail-page py-4">
+        <div className="state-message" role="alert">
+          <p>
+            {status === 'missing'
+              ? "We couldn't find that plaque."
+              : "The plaques couldn't load. Check your connection and try again."}
+          </p>
+          <Link to="/plaques" className="btn btn-primary">
+            Back to all plaques
+          </Link>
+        </div>
+      </Container>
+    );
+  }
+
+  const position = (() => {
+    const loc = plaque.location;
+    if (loc && typeof loc.latitude === 'number' && typeof loc.longitude === 'number') {
+      return [loc.latitude, loc.longitude];
+    }
+    return null;
+  })();
+  const distanceLabel =
+    location && position
+      ? formatDistance(haversineMeters(location, { latitude: position[0], longitude: position[1] }))
+      : null;
+
+  return (
+    <Container className="detail-page py-4">
+      <Link to="/plaques" className="detail-page__back">
+        ← All plaques
+      </Link>
+
+      <h1 className="visually-hidden">{titleFor(plaque)}</h1>
+
+      <InscriptionPanel text={plaque.text} variant="hero" />
+
+      <Row className="detail-page__images g-4">
+        <Col xs={12} md={6}>
+          <figure className="detail-figure">
+            <PlaqueImage
+              plaque={plaque}
+              kind="crop"
+              sizes="(max-width: 768px) 100vw, 50vw"
+              className="detail-figure__img"
+            />
+            <figcaption className="wayfinding">The plaque</figcaption>
+          </figure>
+        </Col>
+        <Col xs={12} md={6}>
+          <figure className="detail-figure">
+            <PlaqueImage
+              plaque={plaque}
+              kind="photo"
+              sizes="(max-width: 768px) 100vw, 50vw"
+              className="detail-figure__img"
+            />
+            <figcaption className="wayfinding">In the park</figcaption>
+          </figure>
+        </Col>
+      </Row>
+
+      {position && (
+        <section className="detail-section">
+          <h2 className="section-title">Find it in the park</h2>
+          {distanceLabel && <p className="wayfinding">{distanceLabel}</p>}
+          <Suspense fallback={<div className="detail-map detail-map--loading" aria-hidden="true" />}>
+            <FindInPark position={position} />
+          </Suspense>
+          <Button as={Link} to={`/?plaque=${encodeURIComponent(plaque.id)}`} variant="outline-primary" className="mt-3">
+            View on map
+          </Button>
+        </section>
+      )}
+
+      <section className="detail-section">
+        <TranscriptionDetails plaque={plaque} />
+      </section>
+    </Container>
+  );
+}

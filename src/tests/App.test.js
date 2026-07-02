@@ -1,62 +1,61 @@
 import { render, screen } from '@testing-library/react';
 import App from '../App';
 
-// Firebase analytics cannot initialize in jsdom, so stub the modules App uses
-// at import time.
+// Firebase initialises at import time; stub it so jsdom does not try to reach
+// the network. Analytics is only loaded in production, so no analytics mock is
+// needed for this smoke test.
 vi.mock('firebase/app', () => ({
   initializeApp: vi.fn(() => ({}))
 }));
 
-vi.mock('firebase/analytics', () => ({
-  getAnalytics: vi.fn(() => ({})),
-  logEvent: vi.fn()
-}));
-
-// Leaflet needs a real DOM-sized container, so replace react-leaflet with
-// lightweight passthrough stubs for this smoke test. useMap must return a
-// stable reference so effects keyed on the map object don't loop forever.
-vi.mock('react-leaflet', () => {
-  const Passthrough = ({ children }) => <div>{children}</div>;
+// Leaflet needs a real sized container; replace react-leaflet and the cluster
+// group with lightweight passthroughs. Marker/cluster accept a ref.
+vi.mock('react-leaflet', async () => {
+  const React = await vi.importActual('react');
+  const Pass = ({ children }) => React.createElement('div', null, children);
+  const Marker = React.forwardRef(({ children }, ref) =>
+    React.createElement('div', { ref }, children)
+  );
   const stubMap = {
-    getBounds: () => ({
-      getNorth: () => 0,
-      getSouth: () => 0,
-      getEast: () => 0,
-      getWest: () => 0
-    }),
-    on: () => {},
-    off: () => {}
+    fitBounds: () => {},
+    setView: () => {},
+    getZoom: () => 18
   };
   return {
-    MapContainer: Passthrough,
+    MapContainer: Pass,
     TileLayer: () => null,
-    Marker: Passthrough,
-    Popup: Passthrough,
+    Marker,
+    Popup: Pass,
     GeoJSON: () => null,
     useMap: () => stubMap
   };
 });
 
+vi.mock('react-leaflet-cluster', async () => {
+  const React = await vi.importActual('react');
+  const Cluster = React.forwardRef(({ children }, ref) =>
+    React.createElement('div', { ref }, children)
+  );
+  return { default: Cluster };
+});
+
 beforeEach(() => {
-  // The default route mounts MapPlaques which fetches the park GeoJSON and the
-  // plaque list on mount; return benign empty payloads.
-  global.fetch = vi.fn().mockResolvedValue({
-    ok: true,
-    status: 200,
-    json: async () => ({})
+  global.fetch = vi.fn((url) => {
+    const body = String(url).includes('/list')
+      ? { plaques: [], total_count: 0, limit: 5000, offset: 0 }
+      : {};
+    return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
   });
-  vi.spyOn(console, 'log').mockImplementation(() => {});
-  vi.spyOn(console, 'warn').mockImplementation(() => {});
-  vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
-test('renders the application shell with the site header', () => {
+test('renders the shell with the brand wordmark and navigation', async () => {
   render(<App />);
 
-  const branding = screen.getAllByText(/Cancer Survivor Park/i);
-  expect(branding.length).toBeGreaterThan(0);
+  expect(await screen.findByText('Cancer Survivors Park')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Map' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'All plaques' })).toBeInTheDocument();
 });

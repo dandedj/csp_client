@@ -1,37 +1,30 @@
-import 'bootstrap-icons/font/bootstrap-icons.css';
-import React from 'react';
-import { Link } from 'react-router-dom';
+import { Navbar, Nav, Container } from 'react-bootstrap';
+import { NavLink, Link } from 'react-router-dom';
 
-const Header = () => {
-
-    return (
-        <nav className="navbar navbar-expand-lg navbar-brand-purple mb-3">
-            <div className='container-fluid'>
-                <Link className="navbar-brand fw-bold d-flex align-items-center" to="/">
-                    <img 
-                        src="/cspa-logo-new.png" 
-                        alt="Cancer Survivor Park Alliance Logo" 
-                        height="40" 
-                        className="me-2"
-                    />
-                    Cancer Survivor Park
-                </Link>
-                <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                    <span className="navbar-toggler-icon"></span>
-                </button>
-                <div className="collapse navbar-collapse" id="navbarNav">
-                    <ul className="navbar-nav ms-auto">
-                        <li className="nav-item">
-                            <Link className="nav-link" to={`/list`}>LIST</Link>
-                        </li>
-                        <li className="nav-item">
-                            <Link className="nav-link" to={`/map`}>MAP</Link>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </nav>
-    );
-};
-
-export default Header;
+/**
+ * Site header. Uses react-bootstrap's Navbar (its collapse is handled in React,
+ * so no CDN Bootstrap JS is required) with NavLink active states.
+ */
+export default function Header() {
+  return (
+    <Navbar expand="md" className="site-header" collapseOnSelect>
+      <Container>
+        <Navbar.Brand as={Link} to="/" className="site-brand">
+          <span className="site-brand__name">Cancer Survivors Park</span>
+          <span className="site-brand__place">Greenville, SC</span>
+        </Navbar.Brand>
+        <Navbar.Toggle aria-controls="site-nav" />
+        <Navbar.Collapse id="site-nav">
+          <Nav className="ms-auto">
+            <Nav.Link as={NavLink} to="/" end>
+              Map
+            </Nav.Link>
+            <Nav.Link as={NavLink} to="/plaques">
+              All plaques
+            </Nav.Link>
+          </Nav>
+        </Navbar.Collapse>
+      </Container>
+    </Navbar>
+  );
+}

@@ -1,29 +1,44 @@
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import PlaqueCard from '../PlaqueCard';
 
-// Smoke test: render the card with a minimal plaque and confirm the core
-// text content and image render without crashing.
-test('renders the plaque text and image', () => {
-  const plaque = {
-    id: 'abc',
-    text: 'In loving memory of a survivor',
-    photo: { url: 'https://example.com/plaque.jpg' }
-  };
+const plaque = {
+  id: 'IMG_1331.JPEG_24',
+  text: 'In loving memory of a survivor who walked these gardens',
+  photo: {
+    plaque_url: 'https://example.com/plaque.jpg',
+    url: 'https://example.com/photo.jpg'
+  }
+};
 
-  render(<PlaqueCard plaque={plaque} />);
+function renderCard(props = {}) {
+  return render(
+    <MemoryRouter>
+      <PlaqueCard plaque={plaque} {...props} />
+    </MemoryRouter>
+  );
+}
 
-  expect(screen.getByText('Plaque Text')).toBeInTheDocument();
-  expect(screen.getByText('In loving memory of a survivor')).toBeInTheDocument();
-  expect(screen.getByRole('img')).toBeInTheDocument();
+test('renders the inscription excerpt, a crop thumbnail, and both actions', () => {
+  renderCard();
+
+  expect(
+    screen.getByText(/In loving memory of a survivor/i)
+  ).toBeInTheDocument();
+
+  const img = screen.getByRole('img');
+  expect(img).toHaveAttribute('src', 'https://example.com/plaque.jpg');
+  expect(img).toHaveAttribute('loading', 'lazy');
+
+  const read = screen.getByRole('link', { name: /read plaque/i });
+  expect(read).toHaveAttribute('href', '/detail/IMG_1331.JPEG_24');
+
+  // The "View on map" action builds the deep link the map parses.
+  const map = screen.getByRole('link', { name: /view on map/i });
+  expect(map).toHaveAttribute('href', '/?plaque=IMG_1331.JPEG_24');
 });
 
-test('falls back to a default message when no text is present', () => {
-  const plaque = {
-    id: 'def',
-    photo: { url: 'https://example.com/plaque.jpg' }
-  };
-
-  render(<PlaqueCard plaque={plaque} />);
-
-  expect(screen.getByText('No text available')).toBeInTheDocument();
+test('shows a walking-distance label when one is supplied', () => {
+  renderCard({ distanceLabel: '~40 m away' });
+  expect(screen.getByText('~40 m away')).toBeInTheDocument();
 });

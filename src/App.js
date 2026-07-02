@@ -1,69 +1,57 @@
-import React, { useEffect } from 'react';
-import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
-import './App.css';
+import { Suspense, lazy, useEffect } from 'react';
+import {
+  BrowserRouter as Router,
+  Route,
+  Routes,
+  useLocation
+} from 'react-router-dom';
 import Header from './components/Common/Header';
 import Footer from './components/Common/Footer';
-import { LoadingProvider } from './components/Common/LoadingProvider';
-import ListPlaques from './components/Plaques/ListPlaques';
-import MapPlaques from './components/Plaques/MapPlaques';
-import PlaqueDetail from './components/Plaques/PlaqueDetail';
-import { SearchProvider } from './components/Plaques/SearchContext';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { getAnalytics, logEvent } from "firebase/analytics";
-import { initializeApp } from "firebase/app";
+import { PlaquesProvider } from './context/PlaquesContext';
+import { logPageView } from './firebase';
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: "csp-plaques.firebaseapp.com",
-  projectId: "csp-plaques",
-  storageBucket: "csp-plaques.appspot.com",
-  messagingSenderId: "316954750234",
-  appId: "1:316954750234:web:a0bfb2e600f597a6bc90a3",
-  measurementId: "G-NZY0R89RSS"
-};
-
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+// Route-based code splitting: the Leaflet-heavy map and the list/detail views
+// each load in their own chunk, keeping the initial bundle small.
+const MapPlaques = lazy(() => import('./components/Plaques/MapPlaques'));
+const ListPlaques = lazy(() => import('./components/Plaques/ListPlaques'));
+const PlaqueDetail = lazy(() => import('./components/Plaques/PlaqueDetail'));
 
 function PageViewLogger() {
-  initializeApp(firebaseConfig);
-  const navigate = useNavigate();
   const location = useLocation();
-
   useEffect(() => {
-    logEvent(analytics, 'page_view', {
-      page_path: location.pathname,
-      page_location: window.location.href,
-      page_title: document.title,
-    });
-  }, [navigate, location]);
-
+    logPageView(location.pathname);
+  }, [location]);
   return null;
 }
 
-function App() {
-
+function RouteFallback() {
   return (
-    <Router>
-      <PageViewLogger />
-      <LoadingProvider>
-        <SearchProvider>
-          <div className="d-flex flex-column min-vh-100">
-            <Header />
-            <main className="flex-grow-1">
-              <Routes>
-                <Route path="/" element={<MapPlaques />} />
-                <Route path="/list" element={<ListPlaques />} />
-                <Route path="/map" element={<MapPlaques />} />
-                <Route path="/detail/:id" element={<PlaqueDetail />} />
-              </Routes>
-            </main>
-            <Footer />
-          </div>
-        </SearchProvider>
-      </LoadingProvider>
-    </Router>
+    <div className="route-fallback" role="status" aria-live="polite">
+      <span className="visually-hidden">Loading…</span>
+    </div>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <Router>
+      <PageViewLogger />
+      <PlaquesProvider>
+        <div className="app-shell d-flex flex-column min-vh-100">
+          <Header />
+          <main className="flex-grow-1">
+            <Suspense fallback={<RouteFallback />}>
+              <Routes>
+                <Route path="/" element={<MapPlaques />} />
+                <Route path="/map" element={<MapPlaques />} />
+                <Route path="/plaques" element={<ListPlaques />} />
+                <Route path="/detail/:id" element={<PlaqueDetail />} />
+              </Routes>
+            </Suspense>
+          </main>
+          <Footer />
+        </div>
+      </PlaquesProvider>
+    </Router>
+  );
+}

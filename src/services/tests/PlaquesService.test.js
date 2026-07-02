@@ -1,117 +1,124 @@
 import { PlaquesService } from '../PlaquesService';
 import config from '../../config.json';
 
-const service = new PlaquesService();
+const envelope = (plaques, extra = {}) => ({
+  plaques,
+  total_count: plaques.length,
+  limit: 2000,
+  offset: 0,
+  ...extra
+});
 
-const mockFetchResponse = (data, ok = true, status = 200) => ({
-  ok,
+const okResponse = (data, status = 200) => ({
+  ok: status >= 200 && status < 300,
   status,
-  statusText: ok ? 'OK' : 'Error',
+  statusText: 'OK',
   json: vi.fn().mockResolvedValue(data)
 });
 
+let service;
+
 beforeEach(() => {
+  service = new PlaquesService();
   global.fetch = vi.fn();
-  vi.spyOn(console, 'log').mockImplementation(() => {});
-  vi.spyOn(console, 'warn').mockImplementation(() => {});
-  vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('PlaquesService.getPlaques (search)', () => {
-  it('builds the search URL with query and pagination params', async () => {
+const calledUrl = (index = 0) => new URL(fetch.mock.calls[index][0]);
+
+describe('listPlaques', () => {
+  it('requests the summary projection and parses the envelope', async () => {
     fetch.mockResolvedValue(
-      mockFetchResponse({ plaques: [], total_count: 0, filtered_count: 0 })
+      okResponse(envelope([{ id: 'a' }, { id: 'b' }], { total_count: 1238 }))
     );
 
-    await service.getPlaques('memorial', 50, 100, 0, 'consensus');
+    const result = await service.listPlaques({ fields: 'summary', limit: 5000 });
 
-    const calledUrl = fetch.mock.calls[0][0];
-    expect(calledUrl).toBe(
-      `${config.api.searchPlaquesUrl}?q=memorial&confidence_threshold=50&limit=100&offset=0&sort_by=consensus`
-    );
+    const url = calledUrl();
+    expect(url.origin + url.pathname).toBe(config.api.listPlaquesUrl);
+    expect(url.searchParams.get('fields')).toBe('summary');
+    expect(url.searchParams.get('limit')).toBe('5000');
+    expect(result.plaques).toHaveLength(2);
+    expect(result.totalCount).toBe(1238);
   });
 
-  it('normalizes plaques and returns pagination metadata', async () => {
-    fetch.mockResolvedValue(
-      mockFetchResponse({
-        plaques: [{ id: '1', plaque_text: 'Hello' }],
-        total_count: 5,
-        filtered_count: 1
-      })
-    );
+  it('appends viewport bounds only when all four are numeric', async () => {
+    fetch.mockResolvedValue(okResponse(envelope([])));
 
-    const result = await service.getPlaques('hello');
+    await service.listPlaques({ bounds: { north: 1, south: 2, east: 3, west: 4 } });
+    expect(calledUrl().searchParams.get('north')).toBe('1');
 
-    expect(result.plaques).toHaveLength(1);
-    // plaque_text should be normalized into a text field
-    expect(result.plaques[0].text).toBe('Hello');
-    expect(result.totalCount).toBe(5);
-    expect(result.filteredCount).toBe(1);
+    fetch.mockClear();
+    await service.listPlaques({ bounds: { north: 1, south: 2 } });
+    expect(calledUrl().searchParams.has('north')).toBe(false);
   });
 
-  it('returns an empty result set on a non-ok response instead of throwing', async () => {
-    fetch.mockResolvedValue(mockFetchResponse({ message: 'boom' }, false, 500));
+  it('passes the abort signal through to fetch', async () => {
+    fetch.mockResolvedValue(okResponse(envelope([])));
+    const controller = new AbortController();
 
-    const result = await service.getPlaques('anything');
+    await service.listPlaques({ signal: controller.signal });
 
+    expect(fetch.mock.calls[0][1].signal).toBe(controller.signal);
+  });
+
+  it('throws with the server message on a non-ok response', async () => {
+    fetch.mockResolvedValue(okResponse({ message: 'BigQuery exploded' }, 500));
+
+    await expect(service.listPlaques()).rejects.toThrow('BigQuery exploded');
+  });
+
+  it('memoises identical requests within the TTL', async () => {
+    fetch.mockResolvedValue(okResponse(envelope([{ id: 'a' }])));
+
+    await service.listPlaques({ limit: 100 });
+    await service.listPlaques({ limit: 100 });
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('searchPlaques', () => {
+  it('builds the search URL with the query and summary projection', async () => {
+    fetch.mockResolvedValue(okResponse(envelope([{ id: 'a' }], { total_count: 49 })));
+
+    const result = await service.searchPlaques({ query: 'rené', limit: 5000 });
+
+    const url = calledUrl();
+    expect(url.origin + url.pathname).toBe(config.api.searchPlaquesUrl);
+    expect(url.searchParams.get('q')).toBe('rené');
+    expect(url.searchParams.get('fields')).toBe('summary');
+    expect(result.totalCount).toBe(49);
+  });
+
+  it('returns an empty envelope for a blank query without calling the server', async () => {
+    const result = await service.searchPlaques({ query: '   ' });
+
+    expect(fetch).not.toHaveBeenCalled();
     expect(result.plaques).toEqual([]);
     expect(result.totalCount).toBe(0);
   });
 });
 
-describe('PlaquesService.getAllPlaques (list)', () => {
-  it('builds the list URL with default params', async () => {
-    fetch.mockResolvedValue(mockFetchResponse({ plaques: [], total_count: 0 }));
+describe('getPlaque', () => {
+  it('unwraps the { plaque } envelope from the detail endpoint', async () => {
+    fetch.mockResolvedValue(okResponse({ plaque: { id: '123', text: 'Detail' } }));
 
-    await service.getAllPlaques();
+    const result = await service.getPlaque('123');
 
-    const calledUrl = fetch.mock.calls[0][0];
-    expect(calledUrl).toBe(
-      `${config.api.listPlaquesUrl}?confidence_threshold=50&grouped=false&limit=500&offset=0&sort_by=consensus`
-    );
-  });
-
-  it('appends viewport bounds when provided', async () => {
-    fetch.mockResolvedValue(mockFetchResponse({ plaques: [], total_count: 0 }));
-
-    const bounds = { north: 1, south: 2, east: 3, west: 4 };
-    await service.getAllPlaques(50, false, 500, 0, bounds);
-
-    const calledUrl = fetch.mock.calls[0][0];
-    expect(calledUrl).toContain('&north=1&south=2&east=3&west=4');
-  });
-});
-
-describe('PlaquesService.getPlaqueById (detail)', () => {
-  it('requests the detail URL using the id path segment', async () => {
-    fetch.mockResolvedValue(mockFetchResponse({ id: '123', plaque_text: 'Detail' }));
-
-    const result = await service.getPlaqueById('123');
-
-    const calledUrl = fetch.mock.calls[0][0];
-    expect(calledUrl).toBe(`${config.api.plaqueDetailUrl}/123`);
+    expect(fetch.mock.calls[0][0]).toBe(`${config.api.plaqueDetailUrl}/123`);
     expect(result.text).toBe('Detail');
   });
 
-  it('returns null when no id is provided', async () => {
-    const result = await service.getPlaqueById();
-    expect(result).toBeNull();
+  it('returns null for a 404 and null id without fetching', async () => {
+    fetch.mockResolvedValue(okResponse({ error: 'Plaque not found' }, 404));
+    expect(await service.getPlaque('missing')).toBeNull();
+
+    fetch.mockClear();
+    expect(await service.getPlaque()).toBeNull();
     expect(fetch).not.toHaveBeenCalled();
-  });
-});
-
-describe('PlaquesService.normalizeFields', () => {
-  it('collapses an array text field to its first element', () => {
-    const normalized = service.normalizeFields({ id: '1', text: ['first', 'second'] });
-    expect(normalized.text).toBe('first');
-  });
-
-  it('maps image_url to a photo object', () => {
-    const normalized = service.normalizeFields({ id: '1', image_url: 'https://x/y.jpg' });
-    expect(normalized.photo).toEqual({ url: 'https://x/y.jpg' });
   });
 });

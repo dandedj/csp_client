@@ -1,552 +1,232 @@
-import React, { useContext, useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, GeoJSON, useMap } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
-import { ProgressBar, Toast, Form } from 'react-bootstrap';
-import { PlaquesService } from '../../services/PlaquesService';
-import { SearchContext } from './SearchContext';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useGeolocation } from '../../hooks/useGeolocation';
+import { Form, Button, Spinner } from 'react-bootstrap';
+import { Link, useSearchParams } from 'react-router-dom';
 import { BiCurrentLocation } from 'react-icons/bi';
-
-// Import Leaflet CSS
+import { usePlaques } from '../../context/PlaquesContext';
+import { useGeolocation } from '../../hooks/useGeolocation';
+import InscriptionPanel from './InscriptionPanel';
 import 'leaflet/dist/leaflet.css';
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
-// Fix for default markers
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-});
+// Approximate centre of Cancer Survivors Park, Greenville, SC.
+const INITIAL_CENTER = [34.841326395062595, -82.39848640537643];
+const INITIAL_ZOOM = 18;
+const MAX_ZOOM = 19;
 
-// Custom debounce hook
-const useDebounce = (value, delay) => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-    
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-  
-  return debouncedValue;
-};
-
-// Initial map center (approximate park center)
-const initialMapCenter = [34.841326395062595, -82.39848640537643];
-
-// Map bounds updater component
-const MapBoundsUpdater = ({ onBoundsChange, parkGeoJSON, setMapRef }) => {
-  const map = useMap();
-  
-  useEffect(() => {
-    // Store map reference for parent component
-    setMapRef(map);
-    
-    const updateBounds = () => {
-      const bounds = map.getBounds();
-      onBoundsChange({
-        north: bounds.getNorth(),
-        south: bounds.getSouth(),
-        east: bounds.getEast(),
-        west: bounds.getWest()
-      });
-    };
-    
-    // Initial bounds
-    updateBounds();
-    
-    // Listen for map events
-    map.on('moveend', updateBounds);
-    map.on('zoomend', updateBounds);
-    
-    return () => {
-      map.off('moveend', updateBounds);
-      map.off('zoomend', updateBounds);
-    };
-  }, [map, onBoundsChange, setMapRef]);
-  
-  // Note: Removed automatic fitBounds to preserve initial zoom level
-  // The "Fit to Park" button can be used to manually fit to park bounds if needed
-  
-  return null;
-};
-
-// User location marker component
-const UserLocationMarker = ({ userLocation }) => {
-  if (!userLocation) return null;
-
-  // Create custom icon for user location
-  const userIcon = L.divIcon({
-    className: 'user-location-marker',
-    html: '<div style="background: #4285F4; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
-    iconSize: [20, 20],
-    iconAnchor: [10, 10]
+const markerIcon = (color) =>
+  L.divIcon({
+    className: 'plaque-marker',
+    html: `<span class="plaque-marker__dot" style="background:${color}"></span>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+    popupAnchor: [0, -10]
   });
 
+const VERDIGRIS = '#3E7A66';
+const BRONZE = '#A8834B';
+
+function markerLatLng(plaque) {
+  const loc = plaque?.location;
+  if (!loc || typeof loc.latitude !== 'number' || typeof loc.longitude !== 'number') {
+    return null;
+  }
+  return [loc.latitude, loc.longitude];
+}
+
+function UserLocationMarker({ location }) {
+  if (!location) return null;
+  const icon = L.divIcon({
+    className: 'user-marker',
+    html: '<span class="user-marker__dot"></span>',
+    iconSize: [16, 16],
+    iconAnchor: [8, 8]
+  });
   return (
-    <Marker
-      position={[userLocation.latitude, userLocation.longitude]}
-      icon={userIcon}
-      zIndexOffset={1000}
-    >
-      <Popup>
-        <div>
-          <strong>Your Location</strong><br />
-          Accuracy: ±{Math.round(userLocation.accuracy || 0)}m
-        </div>
-      </Popup>
+    <Marker position={[location.latitude, location.longitude]} icon={icon} zIndexOffset={1000}>
+      <Popup>You are here</Popup>
     </Marker>
   );
-};
+}
 
-// Custom marker clustering component
-const MarkerCluster = ({ plaques, onMarkerClick, currentZoom }) => {
-  const shouldCluster = currentZoom < 18 && plaques.length > 25;
-  
-  if (!shouldCluster) {
-    // Render individual markers
-    return plaques.map((plaque) => {
-      const lat = plaque.location?.latitude || plaque.latitude;
-      const lng = plaque.location?.longitude || plaque.longitude;
-      
-      if (!lat || !lng) return null;
-      
-      return (
-        <Marker
-          key={plaque.id}
-          position={[lat, lng]}
-          eventHandlers={{
-            // Remove the click handler to allow popup to show
-            // click: () => onMarkerClick(plaque)
-          }}
-        >
-          <Popup>
-            <div style={{ maxWidth: '300px', padding: '8px' }}>
-              <div style={{ fontSize: '14px', marginBottom: '12px' }}>
-                {plaque.text ? plaque.text.substring(0, 100) + '...' : plaque.plaque_text ? plaque.plaque_text.substring(0, 100) + '...' : 'No text available'}
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <a 
-                  href={`/detail/${plaque.id}`}
-                  style={{ color: '#0066cc', textDecoration: 'none', fontSize: '14px', fontWeight: '500' }}
-                >
-                  View details →
-                </a>
-              </div>
-            </div>
-          </Popup>
-        </Marker>
-      );
-    });
-  }
-  
-  // Simple clustering by rounding coordinates
-  const clusters = {};
-  const precision = currentZoom < 14 ? 3 : currentZoom < 16 ? 4 : 5;
-  
-  plaques.forEach(plaque => {
-    const lat = plaque.location?.latitude || plaque.latitude;
-    const lng = plaque.location?.longitude || plaque.longitude;
-    
-    if (!lat || !lng) return;
-    
-    const roundedLat = parseFloat(lat).toFixed(precision);
-    const roundedLng = parseFloat(lng).toFixed(precision);
-    const key = `${roundedLat},${roundedLng}`;
-    
-    if (!clusters[key]) {
-      clusters[key] = [];
-    }
-    clusters[key].push(plaque);
-  });
-  
-  return Object.entries(clusters).map(([key, clusterPlaques]) => {
-    if (clusterPlaques.length === 1) {
-      const plaque = clusterPlaques[0];
-      const lat = plaque.location?.latitude || plaque.latitude;
-      const lng = plaque.location?.longitude || plaque.longitude;
-      
-      return (
-        <Marker
-          key={plaque.id}
-          position={[lat, lng]}
-          eventHandlers={{
-            // Remove the click handler to allow popup to show
-            // click: () => onMarkerClick(plaque)
-          }}
-        >
-          <Popup>
-            <div style={{ maxWidth: '300px', padding: '8px' }}>
-              <div style={{ fontSize: '14px', marginBottom: '12px' }}>
-                {plaque.text ? plaque.text.substring(0, 100) + '...' : plaque.plaque_text ? plaque.plaque_text.substring(0, 100) + '...' : 'No text available'}
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <a 
-                  href={`/detail/${plaque.id}`}
-                  style={{ color: '#0066cc', textDecoration: 'none', fontSize: '14px', fontWeight: '500' }}
-                >
-                  View details →
-                </a>
-              </div>
-            </div>
-          </Popup>
-        </Marker>
-      );
-    } else {
-      // Create cluster marker
-      const firstPlaque = clusterPlaques[0];
-      const lat = firstPlaque.location?.latitude || firstPlaque.latitude;
-      const lng = firstPlaque.location?.longitude || firstPlaque.longitude;
-      
-      const clusterIcon = L.divIcon({
-        html: `<div style="background: #8B5A96; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">${clusterPlaques.length}</div>`,
-        className: 'cluster-marker marker-cluster-purple',
-        iconSize: [30, 30],
-        iconAnchor: [15, 15]
-      });
-      
-      return (
-        <Marker
-          key={key}
-          position={[lat, lng]}
-          icon={clusterIcon}
-        >
-          <Popup>
-            <div style={{ maxWidth: '300px' }}>
-              <strong>{clusterPlaques.length} plaques in this area</strong>
-              <br />
-              Click to zoom in for individual plaques
-            </div>
-          </Popup>
-        </Marker>
-      );
-    }
-  });
-};
+/**
+ * Captures the Leaflet map instance, frames the park on first load, and pans to
+ * a deep-linked marker (`?plaque=<id>`), spiderfying its cluster and opening
+ * the popup.
+ */
+function MapController({ parkGeoJSON, plaqueParam, results, clusterRef, markerRefs }) {
+  const map = useMap();
+  const didFrame = useRef(false);
 
-const MapPlaques = () => {
-  const [plaques, setPlaques] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const { searchQuery, setSearchQuery } = useContext(SearchContext);
-  const navigate = useNavigate();
-  const confidenceThreshold = 0;
-  const [grouped, setGrouped] = useState(false);
-  const [localSearchQuery, setLocalSearchQuery] = useState('');
-      const [currentZoom, setCurrentZoom] = useState(18);
-  const [mapBounds, setMapBounds] = useState(null);
-  const [hasMoreData, setHasMoreData] = useState(true);
-  const [paginationInfo, setPaginationInfo] = useState({});
+  useEffect(() => {
+    if (didFrame.current || plaqueParam || !parkGeoJSON) return;
+    try {
+      const bounds = L.geoJSON(parkGeoJSON).getBounds();
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
+        didFrame.current = true;
+      }
+    } catch {
+      /* ignore malformed geojson */
+    }
+  }, [map, parkGeoJSON, plaqueParam]);
+
+  useEffect(() => {
+    if (!plaqueParam) return;
+    const target = results.find((plaque) => plaque.id === plaqueParam);
+    if (!target) return;
+    const latLng = markerLatLng(target);
+    const marker = markerRefs.current[plaqueParam];
+    const cluster = clusterRef.current;
+    if (marker && cluster && typeof cluster.zoomToShowLayer === 'function') {
+      cluster.zoomToShowLayer(marker, () => marker.openPopup());
+    } else if (latLng) {
+      map.setView(latLng, MAX_ZOOM);
+    }
+  }, [map, plaqueParam, results, clusterRef, markerRefs]);
+
+  return null;
+}
+
+export default function MapPlaques() {
+  const { query, setQuery, results, resultsTotal, loading, error, retry } = usePlaques();
+  const { location, getCurrentLocation } = useGeolocation();
+  const [searchParams] = useSearchParams();
+  const plaqueParam = searchParams.get('plaque');
+
   const [parkGeoJSON, setParkGeoJSON] = useState(null);
-  const [mapRef, setMapRef] = useState(null);
+  const clusterRef = useRef(null);
+  const markerRefs = useRef({});
 
-  // Get user's current location
-  const { location: userLocation, error: locationError, loading: locationLoading, getCurrentLocation, isMobile } = useGeolocation();
-  
-  // Debounce the local search query
-  const debouncedSearchQuery = useDebounce(localSearchQuery, 500);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const queryFromURL = searchParams.get('query');
-  const isFirstRender = useRef(true);
-
-  // Determine how many plaques to load based on zoom level
-  const getMarkerLimit = useCallback((zoom) => {
-    if (zoom >= 18) return 800;
-    if (zoom >= 16) return 500;
-    if (zoom >= 14) return 300;
-    if (zoom >= 12) return 200;
-    return 100;
+  useEffect(() => {
+    document.title = 'Map · Cancer Survivors Park';
   }, []);
 
-  // Handle marker click
-  const handleMarkerClick = useCallback((plaque) => {
-    // Don't navigate immediately - let the popup show first
-    // The popup contains the "View details" link
-    console.log('Marker clicked:', plaque);
-  }, []);
-
-  // Handle bounds change
-  const handleBoundsChange = useCallback((bounds) => {
-    setMapBounds(bounds);
-  }, []);
-
-  // Load park GeoJSON data
   useEffect(() => {
-    fetch('/geo/park.geojson')
-      .then(response => response.json())
-      .then(data => setParkGeoJSON(data))
-      .catch(error => console.error('Error loading park GeoJSON:', error));
-  }, []);
-
-  // Sync context state with URL parameter on component mount
-  useEffect(() => {
-    if (queryFromURL && queryFromURL !== searchQuery) {
-      setSearchQuery(queryFromURL);
-      setLocalSearchQuery(queryFromURL);
-      
-      if (queryFromURL && queryFromURL.length > 10 && plaques.length > 0) {
-        const matchingPlaque = plaques.find(p => p.id === queryFromURL);
-        if (matchingPlaque) {
-          handleMarkerClick(matchingPlaque);
-        }
-      }
-    }
-  }, [queryFromURL, setSearchQuery, plaques, handleMarkerClick, searchQuery]);
-
-  // Update search context and URL when debounced query changes
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-
-    setSearchQuery(debouncedSearchQuery);
-    
-    if (debouncedSearchQuery && debouncedSearchQuery.trim() !== '') {
-      setSearchParams({ query: debouncedSearchQuery });
-    } else {
-      setSearchParams({});
-    }
-  }, [debouncedSearchQuery, setSearchQuery, setSearchParams]);
-
-  // Load plaques based on search, confidence, and viewport
-  useEffect(() => {
-    setLoading(true);
-    setHasMoreData(true);
-    
-    const query = searchQuery;
-    const plaquesService = new PlaquesService();
-    const limit = getMarkerLimit(currentZoom);
-    
-    // Prepare viewport bounds for spatial filtering
-    let bounds = null;
-    if (mapBounds && currentZoom >= 14) {
-      bounds = {
-        north: mapBounds.north,
-        south: mapBounds.south,
-        east: mapBounds.east,
-        west: mapBounds.west
-      };
-      console.log('Using viewport bounds for spatial filtering:', bounds);
-    } else {
-      console.log('Skipping spatial filtering: zoom level too low or bounds not available');
-    }
-    
-    // Fetch plaques with pagination and optional spatial filtering
-    const plaquesPromise =
-      query == null || query.trim() === ''
-        ? plaquesService.getAllPlaques(confidenceThreshold, grouped, limit, 0, bounds)
-        : plaquesService.getPlaques(query, confidenceThreshold, limit);
-    
-    plaquesPromise
-      .then((result) => {
-        setPlaques(result.plaques || []);
-        
-        const total = result.totalCount || 0;
-        setPaginationInfo({
-          totalCount: total,
-          filteredCount: result.filteredCount || 0,
-          page: result.page || 1,
-          limit: result.limit || limit,
-          offset: result.offset || 0
-        });
-        
-        setHasMoreData(total > (result.plaques?.length || 0));
-        setLoading(false);
-        console.log(`Loaded ${result.plaques?.length || 0} plaques out of ${total} total`);
-        
-      })
-      .catch((error) => {
-        console.error('There has been a problem with your fetch operation:', error);
-        setError('There has been a problem with your fetch operation');
-        setLoading(false);
-        setHasMoreData(false);
+    const controller = new AbortController();
+    fetch('/geo/park.geojson', { signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => data && setParkGeoJSON(data))
+      .catch(() => {
+        /* park outline is decorative; ignore load failures */
       });
-  }, [searchQuery, confidenceThreshold, grouped, currentZoom, getMarkerLimit, mapBounds, queryFromURL]);
+    return () => controller.abort();
+  }, []);
 
-  const handleSearchChange = (event) => {
-    setLocalSearchQuery(event.target.value);
-  };
+  const geoJsonStyle = useMemo(
+    () => ({ color: VERDIGRIS, weight: 2, opacity: 0.6, fillOpacity: 0.08 }),
+    []
+  );
+  const verdigrisPin = useMemo(() => markerIcon(VERDIGRIS), []);
+  const bronzePin = useMemo(() => markerIcon(BRONZE), []);
 
-  const handleFormSubmit = (event) => {
-    event.preventDefault();
-    setSearchQuery(localSearchQuery);
-    
-    if (localSearchQuery && localSearchQuery.trim() !== '') {
-      setSearchParams({ query: localSearchQuery });
-    } else {
-      setSearchParams({});
-    }
-  };
-
-  const handleGroupedChange = (event) => {
-    setGrouped(event.target.checked);
-  };
-
-  const handleFitToPark = () => {
-    if (parkGeoJSON && mapRef) {
-      try {
-        const geoJsonLayer = L.geoJSON(parkGeoJSON);
-        const bounds = geoJsonLayer.getBounds();
-          // Use more generous padding and set a maximum zoom level for better view
-        if (bounds.isValid()) {
-          mapRef.fitBounds(bounds, { padding: [50, 50], maxZoom: 17 });
-        }
-      } catch (error) {
-        console.error('Error fitting to park bounds:', error);
-      }
-    }
-  };
-
-  // Center map on user location
-  const centerOnUserLocation = () => {
-    if (mapRef && userLocation) {
-      mapRef.setView([userLocation.latitude, userLocation.longitude], 18);
-    }
-  };
-
-  // GeoJSON style
-  const geoJsonStyle = {
-    color: '#8B5A96',
-    weight: 2,
-    opacity: 0.6,
-    fillOpacity: 0.1
-  };
+  const markers = results.filter((plaque) => markerLatLng(plaque));
 
   return (
-    <div>
-      {/* Search Controls */}
-      <div className="row mb-3">
-        <div className="col-md-8">
-          <Form onSubmit={handleFormSubmit}>
-            <Form.Group>
-              <Form.Control
-                type="text"
-                placeholder="Search plaques by text..."
-                value={localSearchQuery}
-                onChange={handleSearchChange}
-              />
-            </Form.Group>
-          </Form>
-        </div>
-        <div className="col-md-4 d-flex align-items-center justify-content-between">
-          <Form.Check
-            type="checkbox"
-            label="Group nearby plaques"
-            checked={grouped}
-            onChange={handleGroupedChange}
-          />
-          <button 
-            className="btn btn-primary btn-sm"
-            onClick={handleFitToPark}
-            disabled={!parkGeoJSON}
-          >
-            📍 Fit to Park
-          </button>
-          {/* User Location Button - only show on mobile or when location is available */}
-          {(isMobile || userLocation) && (
-            <button
-              className="btn btn-outline-primary btn-sm ms-2"
-              onClick={userLocation ? centerOnUserLocation : getCurrentLocation}
-              disabled={locationLoading}
-              title={userLocation ? "Center on your location" : "Get your location"}
-            >
-              <BiCurrentLocation />
-              {locationLoading && <span className="ms-1">...</span>}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Loading Indicator */}
-      {loading && (
-        <div className="mb-3">
-          <ProgressBar animated now={100} label="Loading plaques..." className="progress-bar-purple" />
-        </div>
-      )}
-
-      {/* Error Display */}
-      {error && (
-        <Toast show={true} onClose={() => setError(null)} className="mb-3">
-          <Toast.Header>
-            <strong>Error</strong>
-          </Toast.Header>
-          <Toast.Body>{error}</Toast.Body>
-        </Toast>
-      )}
-
-      {/* Map Container */}
-      <div style={{ height: '80vh', width: '100%' }}>
-        <MapContainer
-          center={initialMapCenter}
-          zoom={18}
-          minZoom={10}
-          maxZoom={22}
-          style={{ height: '100%', width: '100%' }}
-          zoomControl={true}
-          scrollWheelZoom={true}
-          doubleClickZoom={true}
-          touchZoom={true}
-          boxZoom={true}
-          keyboard={true}
-          dragging={true}
-          whenReady={(map) => {
-            setCurrentZoom(map.target.getZoom());
-            map.target.on('zoomend', () => {
-              setCurrentZoom(map.target.getZoom());
-            });
-          }}
+    <div className="map-page">
+      <div className="map-page__bar">
+        <Form
+          className="search-field search-field--floating"
+          role="search"
+          onSubmit={(event) => event.preventDefault()}
         >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            maxZoom={22}
-            minZoom={10}
+          <Form.Label htmlFor="map-search" className="visually-hidden">
+            Search plaques
+          </Form.Label>
+          <Form.Control
+            id="map-search"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search names or words on a plaque"
+            aria-label="Search names or words on a plaque"
           />
-          
-          {/* Park GeoJSON Layer */}
-          {parkGeoJSON && <GeoJSON data={parkGeoJSON} style={geoJsonStyle} />}
-          
-          {/* Map bounds updater */}
-          <MapBoundsUpdater 
-            onBoundsChange={handleBoundsChange} 
-            parkGeoJSON={parkGeoJSON}
-            setMapRef={setMapRef}
-          />
-          
-          {/* Plaque Markers */}
-          
-          {/* User Location Marker */}
-          <UserLocationMarker userLocation={userLocation} />
-          <MarkerCluster
-            plaques={plaques}
-            onMarkerClick={handleMarkerClick}
-            currentZoom={currentZoom}
-          />
-        </MapContainer>
+        </Form>
+        <Button
+          variant="light"
+          className="map-page__locate"
+          onClick={getCurrentLocation}
+          aria-label="Find my location"
+          title="Find my location"
+        >
+          <BiCurrentLocation aria-hidden="true" />
+        </Button>
+        <p className="map-page__count wayfinding" aria-live="polite">
+          {loading ? (
+            <Spinner animation="border" size="sm" role="status" aria-label="Loading" />
+          ) : (
+            `${markers.length} of ${resultsTotal}`
+          )}
+        </p>
       </div>
 
-      {/* Stats */}
-      <div className="mt-3 d-flex justify-content-between align-items-center">
-        <small className="text-muted">
-          Showing {plaques.length} plaques
-          {paginationInfo.totalCount && ` of ${paginationInfo.totalCount} total`}
-          {currentZoom < 18 && plaques.length > 25 && ' (clustered)'}
-        </small>
-        <small className="text-muted">
-          Zoom: {currentZoom} | Use mouse wheel, +/- keys, or zoom controls to navigate
-        </small>
-      </div>
+      {error && (
+        <div className="map-page__error" role="alert">
+          <span>The plaques couldn&apos;t load. Check your connection and try again.</span>
+          <Button variant="primary" size="sm" onClick={retry}>
+            Try again
+          </Button>
+        </div>
+      )}
+
+      <MapContainer
+        center={INITIAL_CENTER}
+        zoom={INITIAL_ZOOM}
+        minZoom={10}
+        maxZoom={MAX_ZOOM}
+        scrollWheelZoom
+        className="map-page__map"
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          maxZoom={MAX_ZOOM}
+        />
+        {parkGeoJSON && <GeoJSON data={parkGeoJSON} style={geoJsonStyle} />}
+        <UserLocationMarker location={location} />
+
+        <MarkerClusterGroup
+          ref={clusterRef}
+          chunkedLoading
+          spiderfyOnMaxZoom
+          showCoverageOnHover={false}
+          maxClusterRadius={50}
+        >
+          {markers.map((plaque) => {
+            const isSelected = plaque.id === plaqueParam;
+            return (
+              <Marker
+                key={plaque.id}
+                position={markerLatLng(plaque)}
+                icon={isSelected ? bronzePin : verdigrisPin}
+                zIndexOffset={isSelected ? 500 : 0}
+                ref={(instance) => {
+                  if (instance) markerRefs.current[plaque.id] = instance;
+                  else delete markerRefs.current[plaque.id];
+                }}
+              >
+                <Popup>
+                  <div className="marker-popup">
+                    <InscriptionPanel text={plaque.text} variant="popup" />
+                    <Link to={`/detail/${plaque.id}`} className="btn btn-primary btn-sm">
+                      Read plaque
+                    </Link>
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          })}
+        </MarkerClusterGroup>
+
+        <MapController
+          parkGeoJSON={parkGeoJSON}
+          plaqueParam={plaqueParam}
+          results={results}
+          clusterRef={clusterRef}
+          markerRefs={markerRefs}
+        />
+      </MapContainer>
     </div>
   );
-};
-
-export default MapPlaques;
+}
