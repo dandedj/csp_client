@@ -121,7 +121,41 @@ export default function MapPlaques() {
   const verdigrisPin = useMemo(() => markerIcon(VERDIGRIS), []);
   const bronzePin = useMemo(() => markerIcon(BRONZE), []);
 
-  const markers = results.filter((plaque) => markerLatLng(plaque));
+  const markers = useMemo(
+    () => results.filter((plaque) => markerLatLng(plaque)),
+    [results]
+  );
+
+  // Memoized so typing in the floating search (context updates per keystroke,
+  // ahead of the debounced fetch) doesn't re-render ~900 markers.
+  const markerElements = useMemo(
+    () =>
+      markers.map((plaque) => {
+        const isSelected = plaque.id === plaqueParam;
+        return (
+          <Marker
+            key={plaque.id}
+            position={markerLatLng(plaque)}
+            icon={isSelected ? bronzePin : verdigrisPin}
+            zIndexOffset={isSelected ? 500 : 0}
+            ref={(instance) => {
+              if (instance) markerRefs.current[plaque.id] = instance;
+              else delete markerRefs.current[plaque.id];
+            }}
+          >
+            <Popup>
+              <div className="marker-popup">
+                <InscriptionPanel text={plaque.text} variant="popup" />
+                <Link to={`/detail/${plaque.id}`} className="btn btn-primary btn-sm">
+                  Read plaque
+                </Link>
+              </div>
+            </Popup>
+          </Marker>
+        );
+      }),
+    [markers, plaqueParam, bronzePin, verdigrisPin]
+  );
 
   return (
     <div className="map-page">
@@ -186,37 +220,15 @@ export default function MapPlaques() {
         {parkGeoJSON && <GeoJSON data={parkGeoJSON} style={geoJsonStyle} />}
         <UserLocationMarker location={location} />
 
+        {/* No chunkedLoading: at ~900 markers synchronous adds are fast, and
+            chunked (async) adds could race the deep-link zoomToShowLayer call. */}
         <MarkerClusterGroup
           ref={clusterRef}
-          chunkedLoading
           spiderfyOnMaxZoom
           showCoverageOnHover={false}
           maxClusterRadius={50}
         >
-          {markers.map((plaque) => {
-            const isSelected = plaque.id === plaqueParam;
-            return (
-              <Marker
-                key={plaque.id}
-                position={markerLatLng(plaque)}
-                icon={isSelected ? bronzePin : verdigrisPin}
-                zIndexOffset={isSelected ? 500 : 0}
-                ref={(instance) => {
-                  if (instance) markerRefs.current[plaque.id] = instance;
-                  else delete markerRefs.current[plaque.id];
-                }}
-              >
-                <Popup>
-                  <div className="marker-popup">
-                    <InscriptionPanel text={plaque.text} variant="popup" />
-                    <Link to={`/detail/${plaque.id}`} className="btn btn-primary btn-sm">
-                      Read plaque
-                    </Link>
-                  </div>
-                </Popup>
-              </Marker>
-            );
-          })}
+          {markerElements}
         </MarkerClusterGroup>
 
         <MapController

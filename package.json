@@ -9,7 +9,6 @@
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@fontsource/marcellus": "^5.2.8",
     "bootstrap": "^5.3.2",
-    "bootstrap-icons": "^1.11.2",
     "firebase": "^12.15.0",
     "leaflet": "^1.9.4",
     "prop-types": "^15.8.1",
