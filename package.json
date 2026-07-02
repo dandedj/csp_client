@@ -1,8 +1,8 @@
 {
   "name": "csp-reactjs",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
-  "homepage": ".",
+  "homepage": "/",
   "dependencies": {
     "@react-google-maps/api": "^2.19.2",
     "@testing-library/jest-dom": "^5.17.0",

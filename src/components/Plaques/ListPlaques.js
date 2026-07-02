@@ -6,6 +6,7 @@ import { SearchContext } from "./SearchContext";
 import { BiGeo } from "react-icons/bi";
 import CroppedImage from "../Common/CroppedImage";
 import { getThumbnailUrl, getImageAltText, getImageSrcSet, getImageSizes } from "../../utils/imageUtils";
+import { calculateAIConsensusScore } from "../../utils/textSimilarity";
 
 export default function ListPlaques() {
     const [plaques, setPlaques] = useState([]);
@@ -15,8 +16,7 @@ export default function ListPlaques() {
     // Fixed confidence value - filter removed from UI
     const confidenceThreshold = 0;
     // Add sorting capability
-    const [sortField, setSortField] = useState('confidence');
-    const [sortDirection, setSortDirection] = useState('desc');
+    const [sortBy, setSortBy] = useState('consensus');
     const [localSearchQuery, setLocalSearchQuery] = useState("");
     
     // Custom debounce hook for search
@@ -60,8 +60,8 @@ export default function ListPlaques() {
 
         const plaquesPromise =
             query == null || query.trim() === ""
-                ? plaquesService.getAllPlaques(confidenceThreshold)
-                : plaquesService.getPlaques(query, confidenceThreshold);
+                ? plaquesService.getAllPlaques(confidenceThreshold, false, 500, 0, null, sortBy)
+                : plaquesService.getPlaques(query, confidenceThreshold, 100, 0, sortBy);
 
         plaquesPromise
             .then((res) => {
@@ -92,7 +92,7 @@ export default function ListPlaques() {
                 setError("There has been a problem with your fetch operation");
                 setLoading(false);
             });
-    }, [searchQuery, confidenceThreshold]);
+    }, [searchQuery, confidenceThreshold, sortBy]);
 
     const handleSearchChange = (event) => {
         setLocalSearchQuery(event.target.value);
@@ -100,14 +100,15 @@ export default function ListPlaques() {
 
     // Sort handler for table headers
     const handleSort = (field) => {
-        if (sortField === field) {
-            // Toggle direction if clicking the same field
-            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-        } else {
-            // Set new field and default to descending
-            setSortField(field);
-            setSortDirection('desc');
-        }
+        // Map field to server sort values
+        const sortMap = {
+            'confidence': 'consensus',
+            'text': 'text',
+            'id': 'text' // ID sorting not supported, use text
+        };
+        
+        const newSortBy = sortMap[field] || 'consensus';
+        setSortBy(newSortBy);
     };
 
     const handleFormSubmit = (event) => {
@@ -182,48 +183,21 @@ export default function ListPlaques() {
                             onClick={() => handleSort('text')} 
                             style={{cursor: 'pointer'}}
                         >
-                            Text {sortField === 'text' && (sortDirection === 'asc' ? '▲' : '▼')}
+                            Text {sortBy === 'text' && '▼'}
                         </th>
                         <th 
                             onClick={() => handleSort('confidence')} 
                             style={{cursor: 'pointer'}}
                         >
-                            Confidence {sortField === 'confidence' && (sortDirection === 'asc' ? '▲' : '▼')}
+                            AI Consensus {sortBy === 'consensus' && '▼'}
                         </th>
                         <th>Location</th>
                         <th>Photo</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {/* Sort plaques before display */}
-                    {[...plaques]
-                        .sort((a, b) => {
-                            let valueA, valueB;
-                            
-                            // Determine how to extract the field's value
-                            if (sortField === 'confidence') {
-                                valueA = a.confidence || 0;
-                                valueB = b.confidence || 0;
-                            } else if (sortField === 'text') {
-                                valueA = (a.text || a.plaque_text || '').toLowerCase();
-                                valueB = (b.text || b.plaque_text || '').toLowerCase();
-                            } else if (sortField === 'id') {
-                                valueA = a.id || '';
-                                valueB = b.id || '';
-                            } else {
-                                // Default fallback
-                                valueA = a[sortField] || '';
-                                valueB = b[sortField] || '';
-                            }
-                            
-                            // Compare based on direction
-                            if (sortDirection === 'asc') {
-                                return valueA > valueB ? 1 : valueA < valueB ? -1 : 0;
-                            } else {
-                                return valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
-                            }
-                        })
-                        .map((plaque, index) => {
+                    {/* Plaques are already sorted by the server */}
+                    {plaques.map((plaque, index) => {
                             const lat = plaque.location?.latitude || plaque.latitude;
                             const lng = plaque.location?.longitude || plaque.longitude;
                             const mapPreviewUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=16&size=120x80&markers=color:purple%7C${lat},${lng}&key=${process.env.REACT_APP_MAPS_API_KEY}`;
@@ -248,13 +222,52 @@ export default function ListPlaques() {
                                             "No text available"}
                                     </td>
                                     <td>
-                                        {plaque.confidence ? (
-                                            <span className={`badge ${getConfidenceBadgeClass(plaque.confidence)}`}>
-                                                {plaque.confidence}%
-                                            </span>
-                                        ) : (
-                                            <span className="badge badge-brand-secondary">N/A</span>
-                                        )}
+                                        {(() => {
+                                            // Calculate consensus score
+                                            let consensusScore = 0;
+                                            
+                                            // First try to calculate from service_results (new format)
+                                            if (plaque.service_results) {
+                                                // Convert service_results to format expected by calculateAIConsensusScore
+                                                const convertedExtractions = {};
+                                                for (const [service, result] of Object.entries(plaque.service_results)) {
+                                                    // Include all services, even those with null results
+                                                    const serviceName = service === 'gemini' ? 'google_vision' : service;
+                                                    if (result === null || result === undefined) {
+                                                        convertedExtractions[serviceName] = null;
+                                                    } else if (typeof result === 'string') {
+                                                        convertedExtractions[serviceName] = { text: result };
+                                                    }
+                                                }
+                                                // Always calculate consensus if we have service results
+                                                if (Object.keys(convertedExtractions).length > 0) {
+                                                    consensusScore = calculateAIConsensusScore(convertedExtractions);
+                                                }
+                                            }
+                                            // Fall back to individual_extractions (old format)
+                                            else if (plaque.individual_extractions) {
+                                                consensusScore = calculateAIConsensusScore(plaque.individual_extractions);
+                                            }
+                                            // Last resort: use pre-calculated values
+                                            else {
+                                                consensusScore = plaque.consensus_score || 0;
+                                            }
+                                            
+                                            return (
+                                                <span 
+                                                    className="badge"
+                                                    style={{
+                                                        backgroundColor: consensusScore >= 75 ? '#198754' : 
+                                                                       consensusScore >= 50 ? '#fd7e14' : 
+                                                                       '#dc3545',
+                                                        color: 'white',
+                                                        fontWeight: 'bold'
+                                                    }}
+                                                >
+                                                    {consensusScore}%
+                                                </span>
+                                            );
+                                        })()}
                                     </td>
                                     <td>
                                         <div style={{ position: 'relative', display: 'inline-block' }}>
@@ -298,6 +311,7 @@ export default function ListPlaques() {
                                                     width={80}
                                                     height={60}
                                                     context="thumbnail"
+                                                    imageType="cropped"
                                                 />
                                             </div>
                                         </Link>

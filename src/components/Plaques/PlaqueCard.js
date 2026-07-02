@@ -1,12 +1,15 @@
-import React from "react";
+import React, { useState } from "react";
 import PropTypes from "prop-types";
-import { Card, Row, Col, Badge, ProgressBar } from "react-bootstrap";
+import { Card, Row, Col, Badge, ProgressBar, Button } from "react-bootstrap";
 import Plaque from "./Plaque";
 import CroppedImage from "../Common/CroppedImage";
 import PlaqueImageComparison from "../Common/PlaqueImageComparison";
 import { getCardImageUrl, getImageAltText, getImageSrcSet, getImageSizes, getImageUrl, hasCroppingCoordinates, hasCroppedImageUrl } from "../../utils/imageUtils";
+import { calculateAIConsensusScore, getConsensusLabel } from "../../utils/textSimilarity";
 
 function PlaqueCard({ plaque }) {
+    const [showOriginal, setShowOriginal] = useState(false);
+    
     // Helper to get the plaque text, supporting both field naming conventions
     const getPlaqueText = () => {
         if (!plaque) return "No text available";
@@ -17,9 +20,8 @@ function PlaqueCard({ plaque }) {
     // Log the plaque data for debugging
     console.log("PlaqueCard received:", plaque);
 
-    const hasCropping = hasCroppingCoordinates(plaque);
-    const hasCroppedUrl = hasCroppedImageUrl(plaque);
-    const shouldShowComparison = hasCroppedUrl || hasCropping;
+    // Always show comparison button since we always have cropped images
+    const shouldShowComparison = true;
 
     return (
         <>
@@ -30,222 +32,165 @@ function PlaqueCard({ plaque }) {
                         <Row className="mb-3">
                             <Col>
                                 {plaque.text ? (
-                                    <Plaque text={plaque.text} confidence={plaque.confidence} />
+                                    <Plaque text={plaque.text} />
                                 ) : plaque.plaque_text ? (
-                                    <Plaque text={plaque.plaque_text} confidence={plaque.confidence} />
+                                    <Plaque text={plaque.plaque_text} />
                                 ) : (
-                                    <Plaque text="No text available" confidence={plaque.confidence} />
+                                    <Plaque text="No text available" />
                                 )}
                             </Col>
                         </Row>
                         
                         {/* Images Section */}
                         <div className="mb-3">
-                            {shouldShowComparison ? (
-                                <PlaqueImageComparison
+                            <div className="d-flex justify-content-between align-items-center mb-2">
+                                <h6 className="text-muted mb-0">
+                                    {showOriginal ? 'Original Photo' : 'Plaque Image'}
+                                </h6>
+                                {shouldShowComparison && (
+                                    <Button 
+                                        variant="outline-secondary" 
+                                        size="sm"
+                                        onClick={() => setShowOriginal(!showOriginal)}
+                                    >
+                                        {showOriginal ? 'View Plaque' : 'View Original Photo'}
+                                    </Button>
+                                )}
+                            </div>
+                            
+                            {showOriginal && shouldShowComparison ? (
+                                <CroppedImage
                                     plaque={plaque}
                                     size="large"
                                     width="100%"
-                                    height={400}
-                                    showBothWhenAvailable={true}
+                                    height="auto"
+                                    className="rounded"
+                                    context="detail"
+                                    imageType="original"
+                                    style={{maxHeight: '500px', objectFit: 'contain'}}
                                 />
                             ) : (
-                                <div>
-                                    <h6 className="text-muted mb-2">Plaque Image</h6>
-                                    <CroppedImage
-                                        plaque={plaque}
-                                        size="large"
-                                        width="100%"
-                                        height="auto"
-                                        className="rounded"
-                                        context="detail"
-                                        imageType="original"
-                                        style={{maxHeight: '500px', objectFit: 'contain'}}
-                                    />
-                                </div>
+                                <CroppedImage
+                                    plaque={plaque}
+                                    size="large"
+                                    width="100%"
+                                    height="auto"
+                                    className="rounded"
+                                    context="detail"
+                                    imageType="cropped"
+                                    style={{maxHeight: '500px', objectFit: 'contain'}}
+                                />
                             )}
                         </div>
                         
-                        {/* Compact data section */}
+                        {/* Simplified data section - removed all technical details */}
                         <Card.Text className="small">
-                            <Row>
-                                <Col md={6}>
-                                    <strong>ID:</strong> <span className="badge badge-brand-secondary">{plaque.id}</span><br />
-                                    <strong>Location:</strong>{" "}
-                                    <span className="badge badge-green">
-                                        {Math.round(plaque.location?.latitude*100000)/100000 || Math.round(plaque.latitude*100000)/100000},
-                                        {Math.round(plaque.location?.longitude*100000)/100000 || Math.round(plaque.longitude*100000)/100000}
-                                    </span><br />
-                                    <strong>Camera:</strong>{" "}
-                                    <span className="badge badge-purple">
-                                        {Math.round(plaque.photo?.camera_position?.latitude*100000)/100000 || Math.round(plaque.latitude*100000)/100000},
-                                        {Math.round(plaque.photo?.camera_position?.longitude*100000)/100000 || Math.round(plaque.longitude*100000)/100000}
-                                    </span>
-                                    {(plaque.photo?.camera_position?.bearing || plaque.bearing) && (
-                                        <> <span className="badge badge-brand-secondary">{plaque.photo?.camera_position?.bearing || plaque.bearing}&deg;</span></>
-                                    )}
-                                </Col>
-                                <Col md={6}>
-                                    <strong>Confidence:</strong><br />
-                                    <div className="d-flex align-items-center mb-1">
-                                        <span style={{minWidth: '60px'}}>Text:</span>
-                                        <ProgressBar 
-                                            now={plaque.confidence} 
-                                            label={`${plaque.confidence}%`} 
-                                            className={plaque.confidence > 80 ? "progress-bar-green" : "progress-bar-purple"}
-                                            style={{ width: '100%', maxWidth: '150px' }}
-                                        />
-                                    </div>
-                                    <div className="d-flex align-items-center">
-                                        <span style={{minWidth: '60px'}}>Location:</span>
-                                        <ProgressBar 
-                                            now={plaque.location?.confidence} 
-                                            label={`${plaque.location?.confidence}%`} 
-                                            className={plaque.location?.confidence > 80 ? "progress-bar-green" : "progress-bar-purple"}
-                                            style={{ width: '100%', maxWidth: '150px' }}
-                                        />
-                                    </div>
-                                </Col>
-                            </Row>
                             
-                            {/* Additional details in a compact format */}
-                            {(plaque.estimated_distance || plaque.position_in_image || plaque.cropping_coordinates) && (
-                                <Row className="mt-2">
-                                    <Col>
-                                        {plaque.estimated_distance && (
-                                            <>
-                                                <strong>Distance:</strong>{" "}
-                                                <span className="badge badge-brand-secondary">{plaque.estimated_distance}m</span>
-                                                {plaque.offset_direction && (
-                                                    <> <span className="badge badge-brand-secondary">{plaque.offset_direction}</span></>
-                                                )}
-                                                <br />
-                                            </>
-                                        )}
-                                        {plaque.position_in_image && (
-                                            <>
-                                                <strong>Image Position:</strong>{" "}
-                                                <span className="badge badge-brand-secondary">x: {Math.round(plaque.position_in_image.x * 100)}%</span>{" "}
-                                                <span className="badge badge-brand-secondary">y: {Math.round(plaque.position_in_image.y * 100)}%</span>
-                                                <br />
-                                            </>
-                                        )}
-                                        {plaque.cropping_coordinates && (
-                                            <>
-                                                <strong>Cropping:</strong>{" "}
-                                                <span className="badge badge-green">x: {Math.round(plaque.cropping_coordinates.x * 100)}%</span>{" "}
-                                                <span className="badge badge-green">y: {Math.round(plaque.cropping_coordinates.y * 100)}%</span>{" "}
-                                                <span className="badge badge-green">w: {Math.round(plaque.cropping_coordinates.width * 100)}%</span>{" "}
-                                                <span className="badge badge-green">h: {Math.round(plaque.cropping_coordinates.height * 100)}%</span>
-                                                <br />
-                                            </>
-                                        )}
-                                    </Col>
-                                </Row>
-                            )}
-                            
-                            {/* Related plaques */}
-                            {plaque.related_plaques && plaque.related_plaques.length > 0 && (
+                            {/* OCR Analysis Section - show if we have service_results or individual_extractions */}
+                            {(plaque.service_results || (plaque.ocr_analysis && plaque.individual_extractions && 
+                             (plaque.individual_extractions.openai?.text || 
+                              plaque.individual_extractions.claude?.text || 
+                              plaque.individual_extractions.google_vision?.text))) && (
                                 <>
                                     <hr className="my-3" />
-                                    <strong>Related Plaques:</strong>
-                                    <Row className="mt-2">
-                                        {plaque.related_plaques.map((relatedPlaque, index) => (
-                                            <Col md={6} key={index} className="mb-2">
-                                                <Card>
-                                                    <Card.Body className="p-2">
-                                                        <Card.Title className="h6 mb-1">
-                                                            <span className="badge badge-purple">{relatedPlaque.id}</span>
-                                                        </Card.Title>
-                                                        <Card.Text className="small mb-0">
-                                                            {relatedPlaque.text || relatedPlaque.plaque_text || "No text available"}
-                                                        </Card.Text>
-                                                    </Card.Body>
-                                                </Card>
-                                            </Col>
-                                        ))}
-                                    </Row>
-                                </>
-                            )}
-                            
-                            {/* OCR Analysis Section */}
-                            {plaque.ocr_analysis && (
-                                <>
-                                    <hr className="my-3" />
-                                    <strong>AI Consensus OCR Analysis:</strong>
+                                    <strong>AI Text Extraction Analysis:</strong>
                                     
-                                    {/* Consensus Summary */}
+                                    {/* Simplified Consensus Summary */}
                                     <Row className="mt-2 mb-3">
                                         <Col>
-                                            <div className="p-3 bg-light rounded">
-                                                <Row>
-                                                    <Col md={6}>
-                                                        <div className="mb-2">
-                                                            <strong>Method:</strong>
-                                                            <span className="ms-2 badge badge-brand-secondary">
-                                                                {plaque.ocr_analysis.method?.toUpperCase() || 'UNKNOWN'}
-                                                            </span>
-                                                        </div>
-                                                        <div className="mb-2">
-                                                            <strong>Services Used:</strong>
-                                                            <div className="mt-1">
-                                                                {plaque.ocr_analysis.services_used?.map(service => (
-                                                                    <span key={service} className={`badge me-1 ${
-                                                                        service === 'tesseract' ? 'badge-brand-secondary' :
-                                                                        service === 'openai' ? 'badge-brand-green' :
-                                                                        service === 'claude' ? 'badge-brand-purple' :
-                                                                        service === 'google_vision' ? 'badge-purple' : 'badge-brand-secondary'
-                                                                    }`}>
-                                                                        {service}
-                                                                    </span>
-                                                                )) || <span className="text-muted">No services data</span>}
-                                                            </div>
-                                                        </div>
-                                                    </Col>
-                                                    <Col md={6}>
-                                                        <div className="mb-2">
-                                                            <strong>Consensus Score:</strong>
-                                                            <span className="ms-2 badge badge-green">
-                                                                {plaque.ocr_analysis.consensus_score?.toFixed(1) || 'N/A'}
-                                                            </span>
-                                                        </div>
-                                                        <div className="mb-2">
-                                                            <strong>Processing Time:</strong>
-                                                            <span className="ms-2 badge badge-brand-secondary">
-                                                                {plaque.ocr_analysis.processing_time?.toFixed(2) || 'N/A'}s
-                                                            </span>
-                                                        </div>
-                                                        {plaque.ocr_analysis.timestamp && (
-                                                            <div className="mb-2">
-                                                                <strong>Processed:</strong>
-                                                                <div className="small text-muted">
-                                                                    {new Date(plaque.ocr_analysis.timestamp).toLocaleString()}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </Col>
-                                                </Row>
+                                            <div className="p-3 bg-light rounded text-center">
+                                                {(() => {
+                                                    // Calculate nuanced consensus score based on text similarity
+                                                    let consensusScore = 0;
+                                                    
+                                                    // First try to calculate from service_results (new format)
+                                                    if (plaque.service_results) {
+                                                        // Convert service_results to format expected by calculateAIConsensusScore
+                                                        const convertedExtractions = {};
+                                                        for (const [service, result] of Object.entries(plaque.service_results)) {
+                                                            // Include all services, even those with null results
+                                                            const serviceName = service === 'gemini' ? 'google_vision' : service;
+                                                            if (result === null || result === undefined) {
+                                                                convertedExtractions[serviceName] = null;
+                                                            } else if (typeof result === 'string') {
+                                                                convertedExtractions[serviceName] = { text: result };
+                                                            }
+                                                        }
+                                                        // Always calculate consensus if we have service results
+                                                        if (Object.keys(convertedExtractions).length > 0) {
+                                                            consensusScore = calculateAIConsensusScore(convertedExtractions);
+                                                        }
+                                                    }
+                                                    // Fall back to individual_extractions (old format)
+                                                    else if (plaque.individual_extractions) {
+                                                        consensusScore = calculateAIConsensusScore(plaque.individual_extractions);
+                                                    }
+                                                    // Last resort: use pre-calculated values
+                                                    else if (plaque.ocr_analysis) {
+                                                        consensusScore = plaque.ocr_analysis.consensus_score?.toFixed(0) || plaque.ocr_analysis.agreement_count || 0;
+                                                    }
+                                                    const consensusLabel = getConsensusLabel(consensusScore);
+                                                    
+                                                    return (
+                                                        <>
+                                                            <h5 className="mb-0">
+                                                                <strong>AI Consensus:</strong>
+                                                                <span 
+                                                                    className="ms-2 badge"
+                                                                    style={{
+                                                                        fontSize: '1.1em',
+                                                                        backgroundColor: consensusScore >= 75 ? '#198754' : 
+                                                                                       consensusScore >= 50 ? '#fd7e14' : 
+                                                                                       '#dc3545',
+                                                                        color: 'white',
+                                                                        fontWeight: 'bold'
+                                                                    }}
+                                                                >
+                                                                    {consensusScore}%
+                                                                </span>
+                                                            </h5>
+                                                            <small className="text-muted">{consensusLabel} - AI services agree on {consensusScore}% of the text</small>
+                                                        </>
+                                                    );
+                                                })()}
                                             </div>
                                         </Col>
                                     </Row>
                                     
                                     {/* Individual Service Results */}
-                                    {plaque.individual_extractions && (
+                                    {(plaque.service_results || plaque.individual_extractions) && (
                                         <Row className="mt-2 extractor-results">
-                                            {['tesseract', 'openai', 'claude', 'google_vision'].map(service => {
-                                                const extraction = plaque.individual_extractions[service];
-                                                // Check if extraction exists and has any data
-                                                if (!extraction || (!extraction.text && extraction.confidence === undefined)) {
+                                            {['openai', 'claude', 'gemini'].map(service => {
+                                                // First check service_results (new format)
+                                                let extractionText = null;
+                                                if (plaque.service_results && service in plaque.service_results) {
+                                                    const result = plaque.service_results[service];
+                                                    if (typeof result === 'string') {
+                                                        extractionText = result;
+                                                    } else if (result === null) {
+                                                        extractionText = '';  // No text found
+                                                    }
+                                                }
+                                                // Fall back to individual_extractions (old format)
+                                                else if (plaque.individual_extractions) {
+                                                    const serviceName = service === 'gemini' ? 'google_vision' : service;
+                                                    const extraction = plaque.individual_extractions[serviceName];
+                                                    if (extraction && extraction.text) {
+                                                        extractionText = extraction.text;
+                                                    }
+                                                }
+                                                
+                                                // Check if we have any data for this service
+                                                if (extractionText === null) {
                                                     return (
                                                         <Col md={3} key={service} className="mb-3">
                                                             <Card className="h-100">
                                                                 <Card.Header className={`text-center ${
-                                                                    service === 'tesseract' ? 'bg-brand-secondary' :
                                                                     service === 'claude' ? 'bg-brand-purple' :
                                                                     service === 'openai' ? 'bg-brand-green' : 
-                                                                    service === 'google_vision' ? 'bg-purple' : 'bg-brand-gray-medium'
+                                                                    service === 'gemini' ? 'bg-purple' : 'bg-brand-gray-medium'
                                                                 } text-white`}>
-                                                                    <strong>{service === 'google_vision' ? 'Google Vision' : service.charAt(0).toUpperCase() + service.slice(1)}</strong>
+                                                                    <strong>{service.charAt(0).toUpperCase() + service.slice(1)}</strong>
                                                                 </Card.Header>
                                                                 <Card.Body className="p-2 text-center text-muted">
                                                                     <small>No data available</small>
@@ -259,35 +204,18 @@ function PlaqueCard({ plaque }) {
                                                     <Col md={3} key={service} className="mb-3">
                                                         <Card className="h-100">
                                                             <Card.Header className={`text-center ${
-                                                                service === 'tesseract' ? 'bg-brand-secondary' :
                                                                 service === 'claude' ? 'bg-brand-purple' :
                                                                 service === 'openai' ? 'bg-brand-green' : 
-                                                                service === 'google_vision' ? 'bg-purple' : 'bg-brand-gray-medium'
+                                                                service === 'gemini' ? 'bg-purple' : 'bg-brand-gray-medium'
                                                             } text-white`}>
-                                                                <strong>{service === 'google_vision' ? 'Google Vision' : service.charAt(0).toUpperCase() + service.slice(1)}</strong>
+                                                                <strong>{service.charAt(0).toUpperCase() + service.slice(1)}</strong>
                                                             </Card.Header>
                                                             <Card.Body className="p-2">
-                                                                {extraction.text && (
-                                                                    <>
-                                                                        <Card.Text className="small mb-2">
-                                                                            <strong>Text:</strong><br/>
-                                                                            <span className="font-monospace" style={{fontSize: '0.8rem'}}>{extraction.text}</span>
-                                                                        </Card.Text>
-                                                                    </>
-                                                                )}
-                                                                {extraction.confidence !== null && extraction.confidence !== undefined && (
-                                                                    <div className="mb-2">
-                                                                        <strong className="small">Confidence:</strong>
-                                                                        <div className="d-flex align-items-center">
-                                                                            <ProgressBar 
-                                                                                now={extraction.confidence} 
-                                                                                label={`${extraction.confidence}%`}
-                                                                                className={extraction.confidence > 80 ? "progress-bar-green" : "progress-bar-purple"}
-                                                                                style={{ width: '100%', maxWidth: '100px' }}
-                                                                            />
-                                                                        </div>
-                                                                    </div>
-                                                                )}
+                                                                <Card.Text className="small mb-2">
+                                                                    <span className="font-monospace" style={{fontSize: '0.8rem'}}>
+                                                                        {extractionText || <em className="text-muted">No text found</em>}
+                                                                    </span>
+                                                                </Card.Text>
                                                             </Card.Body>
                                                         </Card>
                                                     </Col>
@@ -296,157 +224,10 @@ function PlaqueCard({ plaque }) {
                                         </Row>
                                     )}
                                     
-                                    {/* Agreement Matrix */}
-                                    {plaque.ocr_analysis.agreement_matrix && (
-                                        <Row className="mt-3">
-                                            <Col>
-                                                <details>
-                                                    <summary className="small text-muted mb-2" style={{cursor: 'pointer'}}>
-                                                        <strong>Service Agreement Matrix</strong>
-                                                    </summary>
-                                                    <div className="p-2 bg-light rounded">
-                                                        <pre className="small mb-0" style={{fontSize: '0.7rem', maxHeight: '200px', overflow: 'auto'}}>
-                                                            {JSON.stringify(plaque.ocr_analysis.agreement_matrix, null, 2)}
-                                                        </pre>
-                                                    </div>
-                                                </details>
-                                            </Col>
-                                        </Row>
-                                    )}
                                 </>
                             )}
                             
-                            {/* YOLO Detection Analysis */}
-                            {plaque.yolo_detection && (
-                                <>
-                                    <hr className="my-3" />
-                                    <strong>Object Detection Analysis:</strong>
-                                    <Row className="mt-2">
-                                        <Col>
-                                            <div className="p-2 bg-light rounded">
-                                                <Row>
-                                                    <Col md={6}>
-                                                        {plaque.yolo_detection.bbox && (
-                                                            <div className="mb-2">
-                                                                <strong>Bounding Box:</strong>
-                                                                <div className="small">
-                                                                    <span className="badge badge-brand-secondary me-1">
-                                                                        x1: {Math.round(plaque.yolo_detection.bbox.x1)}
-                                                                    </span>
-                                                                    <span className="badge badge-brand-secondary me-1">
-                                                                        y1: {Math.round(plaque.yolo_detection.bbox.y1)}
-                                                                    </span>
-                                                                    <span className="badge badge-brand-secondary me-1">
-                                                                        x2: {Math.round(plaque.yolo_detection.bbox.x2)}
-                                                                    </span>
-                                                                    <span className="badge badge-brand-secondary">
-                                                                        y2: {Math.round(plaque.yolo_detection.bbox.y2)}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {plaque.yolo_detection.confidence && (
-                                                            <div className="mb-2">
-                                                                <strong>Detection Confidence:</strong>
-                                                                <div className="d-flex align-items-center mt-1">
-                                                                    <ProgressBar 
-                                                                        now={plaque.yolo_detection.confidence * 100} 
-                                                                        label={`${(plaque.yolo_detection.confidence * 100).toFixed(1)}%`}
-                                                                        className="progress-bar-green"
-                                                                        style={{ width: '100%', maxWidth: '150px' }}
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </Col>
-                                                    <Col md={6}>
-                                                        {plaque.yolo_detection.dimensions && (
-                                                            <div className="mb-2">
-                                                                <strong>Plaque Dimensions:</strong>
-                                                                <div className="small">
-                                                                    <span className="badge badge-purple me-1">
-                                                                        {plaque.yolo_detection.dimensions.width} × {plaque.yolo_detection.dimensions.height} px
-                                                                    </span>
-                                                                    <span className="badge badge-purple">
-                                                                        {plaque.yolo_detection.dimensions.aspect_ratio?.toFixed(2)} ratio
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </Col>
-                                                </Row>
-                                            </div>
-                                        </Col>
-                                    </Row>
-                                </>
-                            )}
                             
-                            {/* Legacy Individual Extractor Results (fallback) */}
-                            {plaque.individual_extractions && !plaque.ocr_analysis && (
-                                <>
-                                    <hr className="my-3" />
-                                    <strong>Legacy Extractor Results:</strong>
-                                    
-                                    {/* Individual Service Results */}
-                                    <Row className="mt-2 extractor-results">
-                                        {['claude', 'openai', 'gemini'].map(service => {
-                                            const extraction = plaque.individual_extractions[service];
-                                            if (!extraction || (!extraction.text && !extraction.confidence && !extraction.raw_result)) {
-                                                return null;
-                                            }
-                                            
-                                            return (
-                                                <Col md={4} key={service} className="mb-3">
-                                                    <Card className="h-100">
-                                                        <Card.Header className={`text-center ${
-                                                            service === 'claude' ? 'bg-brand-purple' :
-                                                            service === 'openai' ? 'bg-brand-green' : 'bg-brand-gray-medium'
-                                                        } text-white`}>
-                                                            <strong>{service.charAt(0).toUpperCase() + service.slice(1)}</strong>
-                                                        </Card.Header>
-                                                        <Card.Body className="p-2">
-                                                            {extraction.text && (
-                                                                <Card.Text className="small mb-2">
-                                                                    <strong>Text:</strong><br/>
-                                                                    <span className="font-monospace">{extraction.text}</span>
-                                                                </Card.Text>
-                                                            )}
-                                                            {extraction.confidence !== null && extraction.confidence !== undefined && (
-                                                                <div className="mb-2">
-                                                                    <strong className="small">Confidence:</strong>
-                                                                    <div className="d-flex align-items-center">
-                                                                        <ProgressBar 
-                                                                            now={extraction.confidence} 
-                                                                            label={`${extraction.confidence}%`}
-                                                                            className={extraction.confidence > 80 ? "progress-bar-green" : "progress-bar-purple"}
-                                                                            style={{ width: '100%', maxWidth: '120px' }}
-                                                                        />
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </Card.Body>
-                                                    </Card>
-                                                </Col>
-                                            );
-                                        })}
-                                    </Row>
-                                </>
-                            )}
-                            
-                            {/* Single Extractor Type Display */}
-                            {plaque.extractor_type && plaque.extractor_type !== 'consensus' && (
-                                <>
-                                    <hr className="my-3" />
-                                    <Row>
-                                        <Col>
-                                            <strong>Extraction Method:</strong>
-                                            <span className="ms-2 badge badge-brand-secondary">
-                                                {plaque.extractor_type.toUpperCase()}
-                                            </span>
-                                        </Col>
-                                    </Row>
-                                </>
-                            )}
                         </Card.Text>
                     </Card.Body>
                 </Card>

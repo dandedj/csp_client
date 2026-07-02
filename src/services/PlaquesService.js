@@ -36,8 +36,8 @@ export class PlaquesService {
             normalizedPlaque.cropped_image_url = normalizedPlaque.cropped_image_url;
         }
         
-        // Log for debugging
-        console.log('Normalized plaque:', normalizedPlaque);
+        // Log for debugging (commented out to reduce console noise)
+        // console.log('Normalized plaque:', normalizedPlaque);
         
         return normalizedPlaque;
     }
@@ -48,10 +48,10 @@ export class PlaquesService {
         return plaques.map(plaque => this.normalizeFields(plaque));
     }
     
-    async getAllPlaques(confidenceThreshold = 50, grouped = false, limit = 500, offset = 0, bounds = null) {
+    async getAllPlaques(confidenceThreshold = 50, grouped = false, limit = 500, offset = 0, bounds = null, sortBy = 'consensus') {
         // call the google cloud function called app to get the list of plaques and return them
         try {
-            let url = `${config.api.listPlaquesUrl}?confidence_threshold=${confidenceThreshold}&grouped=${grouped}&limit=${limit}&offset=${offset}`;
+            let url = `${config.api.listPlaquesUrl}?confidence_threshold=${confidenceThreshold}&grouped=${grouped}&limit=${limit}&offset=${offset}&sort_by=${sortBy}`;
             
             // Add viewport bounds for spatial filtering if provided
             if (bounds && bounds.north && bounds.south && bounds.east && bounds.west) {
@@ -109,11 +109,11 @@ export class PlaquesService {
     }
 
     // add a function to get a list of plaques given a search term
-    async getPlaques(query, confidenceThreshold = 50, limit = 100, offset = 0) {
+    async getPlaques(query, confidenceThreshold = 50, limit = 100, offset = 0, sortBy = 'consensus') {
         // call the google cloud function called app to get the list of plaques and return them
         try {
             // Simplify request to just use 'q' parameter for cleaner code, add offset for pagination
-            const url = `${config.api.searchPlaquesUrl}?q=${encodeURIComponent(query)}&confidence_threshold=${confidenceThreshold}&limit=${limit}&offset=${offset}`;
+            const url = `${config.api.searchPlaquesUrl}?q=${encodeURIComponent(query)}&confidence_threshold=${confidenceThreshold}&limit=${limit}&offset=${offset}&sort_by=${sortBy}`;
             console.log(`Searching plaques: ${url}`);
             
             const response = await fetch(url, {

@@ -23,7 +23,7 @@ const CroppedImage = ({
   className = '', 
   context = 'plaque',
   showFallback = true,
-  imageType = 'auto', // 'auto', 'cropped', 'original'
+  imageType = 'cropped', // 'auto', 'cropped', 'original' - default to cropped
   style = {},
   ...props 
 }) => {

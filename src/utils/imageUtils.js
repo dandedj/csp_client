@@ -20,6 +20,9 @@ export const getImageUrl = (plaque, size = 'medium', fallbackSize = 'medium', im
     if (plaque.photo?.plaque_url) {
       return plaque.photo.plaque_url;
     }
+    if (plaque.photo?.cropped_url) {
+      return plaque.photo.cropped_url;
+    }
     if (plaque.cropped_image_url) {
       return plaque.cropped_image_url;
     }
@@ -27,14 +30,17 @@ export const getImageUrl = (plaque, size = 'medium', fallbackSize = 'medium', im
 
   // If requesting original image specifically, use the actual URL from database
   if (imageType === 'original') {
-    // Use the actual URL from the database, not the constructed multi-size URLs
-    return plaque.photo?.url || plaque.image_url;
+    // Use the original_url if available, otherwise fall back to the main URL
+    return plaque.photo?.original_url || plaque.photo?.url || plaque.image_url;
   }
 
   // Auto mode: prefer high-res plaque image, then cropped image, otherwise use original
   if (imageType === 'auto') {
     if (plaque.photo?.plaque_url) {
       return plaque.photo.plaque_url;
+    }
+    if (plaque.photo?.cropped_url) {
+      return plaque.photo.cropped_url;
     }
     if (plaque.cropped_image_url) {
       return plaque.cropped_image_url;
@@ -128,7 +134,7 @@ export const hasCroppingCoordinates = (plaque) => {
  * @returns {boolean} True if cropped image URL exists
  */
 export const hasCroppedImageUrl = (plaque) => {
-  return Boolean(plaque?.cropped_image_url);
+  return Boolean(plaque?.photo?.plaque_url || plaque?.photo?.cropped_url || plaque?.cropped_image_url);
 };
 
 /**
@@ -137,7 +143,8 @@ export const hasCroppedImageUrl = (plaque) => {
  * @returns {string|null} Cropped image URL or null
  */
 export const getCroppedImageUrl = (plaque) => {
-  return plaque?.cropped_image_url || null;
+  // Check for plaque_url first (high-res plaque image), then cropped_url, then cropped_image_url
+  return plaque?.photo?.plaque_url || plaque?.photo?.cropped_url || plaque?.cropped_image_url || null;
 };
 
 /**
@@ -147,7 +154,8 @@ export const getCroppedImageUrl = (plaque) => {
  * @returns {string|null} Original image URL
  */
 export const getOriginalImageUrl = (plaque, size = 'medium') => {
-  return getImageUrl(plaque, size, 'medium', 'original');
+  // Directly return the original URL if available
+  return plaque?.photo?.original_url || plaque?.photo?.url || plaque?.image_url || null;
 };
 
 /**
