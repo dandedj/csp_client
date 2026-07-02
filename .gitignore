@@ -7,3 +7,5 @@ firebase-debug.log
 
 # Temporary scripts directory
 tmp/
+# Firebase deploy cache
+.firebase/
