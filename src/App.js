@@ -1,4 +1,5 @@
-import { Suspense, lazy, useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
+import lazyWithReload from './utils/lazyWithReload';
 import {
   BrowserRouter as Router,
   Route,
@@ -12,9 +13,9 @@ import { logPageView } from './firebase';
 
 // Route-based code splitting: the Leaflet-heavy map and the list/detail views
 // each load in their own chunk, keeping the initial bundle small.
-const MapPlaques = lazy(() => import('./components/Plaques/MapPlaques'));
-const ListPlaques = lazy(() => import('./components/Plaques/ListPlaques'));
-const PlaqueDetail = lazy(() => import('./components/Plaques/PlaqueDetail'));
+const MapPlaques = lazyWithReload(() => import('./components/Plaques/MapPlaques'));
+const ListPlaques = lazyWithReload(() => import('./components/Plaques/ListPlaques'));
+const PlaqueDetail = lazyWithReload(() => import('./components/Plaques/PlaqueDetail'));
 
 function PageViewLogger() {
   const location = useLocation();
