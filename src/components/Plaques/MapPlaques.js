@@ -12,7 +12,7 @@ import 'leaflet/dist/leaflet.css';
 
 // Approximate centre of Cancer Survivors Park, Greenville, SC.
 const INITIAL_CENTER = [34.841326395062595, -82.39848640537643];
-const INITIAL_ZOOM = 18;
+const INITIAL_ZOOM = 17; // placeholder until the plaque bounds are framed
 const MAX_ZOOM = 19;
 
 const markerIcon = (color) =>
@@ -51,26 +51,22 @@ function UserLocationMarker({ location }) {
 }
 
 /**
- * Captures the Leaflet map instance, frames the park on first load, and pans to
- * a deep-linked marker (`?plaque=<id>`), spiderfying its cluster and opening
- * the popup.
+ * Captures the Leaflet map instance, frames the plaques whenever the result
+ * set changes (first load and each new search), and pans to a deep-linked
+ * marker (`?plaque=<id>`), spiderfying its cluster and opening the popup.
  */
-function MapController({ parkGeoJSON, plaqueParam, results, clusterRef, markerRefs }) {
+function MapController({ query, plaqueParam, results, clusterRef, markerRefs }) {
   const map = useMap();
-  const didFrame = useRef(false);
+  const framedQuery = useRef(null);
 
   useEffect(() => {
-    if (didFrame.current || plaqueParam || !parkGeoJSON) return;
-    try {
-      const bounds = L.geoJSON(parkGeoJSON).getBounds();
-      if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
-        didFrame.current = true;
-      }
-    } catch {
-      /* ignore malformed geojson */
-    }
-  }, [map, parkGeoJSON, plaqueParam]);
+    if (plaqueParam || results.length === 0) return;
+    if (framedQuery.current === query) return;
+    const points = results.map(markerLatLng).filter(Boolean);
+    if (points.length === 0) return;
+    map.fitBounds(L.latLngBounds(points), { padding: [40, 40], maxZoom: 18 });
+    framedQuery.current = query;
+  }, [map, query, results, plaqueParam]);
 
   useEffect(() => {
     if (!plaqueParam) return;
@@ -232,7 +228,7 @@ export default function MapPlaques() {
         </MarkerClusterGroup>
 
         <MapController
-          parkGeoJSON={parkGeoJSON}
+          query={query}
           plaqueParam={plaqueParam}
           results={results}
           clusterRef={clusterRef}
