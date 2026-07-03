@@ -464,6 +464,21 @@ a:hover {
   margin-top: 0.4rem;
   text-align: center;
 }
+.detail-figure figcaption a {
+  color: var(--verdigris);
+}
+/* Source photo with the detected plaque outlined */
+.photo-highlight {
+  position: relative;
+  line-height: 0; /* no baseline gap below the img */
+}
+.photo-highlight__box {
+  position: absolute;
+  border: 2px solid var(--bronze);
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px rgb(242 244 240 / 55%), 0 0 12px rgb(168 131 75 / 65%);
+  pointer-events: none;
+}
 .detail-section {
   margin-top: 2.5rem;
 }

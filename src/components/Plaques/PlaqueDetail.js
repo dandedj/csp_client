@@ -33,23 +33,67 @@ function titleFor(plaque) {
   return firstLine.length > 60 ? `${firstLine.slice(0, 60).trimEnd()}…` : firstLine;
 }
 
+/**
+ * The source photo with the detected plaque outlined. Box coordinates are
+ * detection-frame pixels; exif_data.image carries the frame dimensions, so
+ * the overlay is positioned in percentages and survives responsive resizing.
+ */
+function PhotoWithHighlight({ plaque }) {
+  const bbox = plaque.yolo_detection?.bbox;
+  const frame = plaque.photo?.exif_data?.image;
+  const box =
+    bbox &&
+    frame?.width > 0 &&
+    frame?.height > 0 &&
+    bbox.x2 > bbox.x1 &&
+    bbox.y2 > bbox.y1
+      ? {
+          left: `${(bbox.x1 / frame.width) * 100}%`,
+          top: `${(bbox.y1 / frame.height) * 100}%`,
+          width: `${((bbox.x2 - bbox.x1) / frame.width) * 100}%`,
+          height: `${((bbox.y2 - bbox.y1) / frame.height) * 100}%`
+        }
+      : null;
+
+  return (
+    <div className="photo-highlight">
+      <PlaqueImage
+        plaque={plaque}
+        kind="photo"
+        sizes="(max-width: 768px) 100vw, 50vw"
+        className="detail-figure__img"
+      />
+      {box && <span className="photo-highlight__box" style={box} aria-hidden="true" />}
+    </div>
+  );
+}
+
+function agreementCopy(plaque, entries) {
+  const responded = entries.filter(([, r]) => r && r.text).length;
+  const agree = plaque.agreement_count || 0;
+  const total = plaque.total_services || entries.length || 0;
+  if (responded <= 1) {
+    return responded === 1
+      ? 'Only one AI service could read this plaque, so the transcription is less certain.'
+      : null;
+  }
+  if (agree >= 2) {
+    return `${agree} of ${total} AI readings match (ignoring case and spacing).`;
+  }
+  return `The ${responded} AI readings differ — the most consistent one is shown above.`;
+}
+
 function TranscriptionDetails({ plaque }) {
   const extractions = plaque.individual_extractions || {};
-  const analysis = plaque.ocr_analysis || {};
   const entries = Object.entries(extractions);
+  const meta = agreementCopy(plaque, entries);
 
   return (
     <Accordion className="detail-accordion">
       <Accordion.Item eventKey="0">
         <Accordion.Header>Transcription details</Accordion.Header>
         <Accordion.Body>
-          {typeof analysis.consensus_score === 'number' && (
-            <p className="wayfinding detail-accordion__meta">
-              Consensus {Math.round(analysis.consensus_score * 100)}%
-              {Array.isArray(analysis.services_used) && analysis.services_used.length > 0 &&
-                ` · ${analysis.services_used.length} services`}
-            </p>
-          )}
+          {meta && <p className="wayfinding detail-accordion__meta">{meta}</p>}
           {entries.length > 0 ? (
             <dl className="service-results">
               {entries.map(([service, result]) => (
@@ -175,13 +219,18 @@ export default function PlaqueDetail() {
         </Col>
         <Col xs={12} md={6}>
           <figure className="detail-figure">
-            <PlaqueImage
-              plaque={plaque}
-              kind="photo"
-              sizes="(max-width: 768px) 100vw, 50vw"
-              className="detail-figure__img"
-            />
-            <figcaption className="wayfinding">In the park</figcaption>
+            <PhotoWithHighlight plaque={plaque} />
+            <figcaption className="wayfinding">
+              In the park
+              {plaque.photo?.original_url && (
+                <>
+                  {' · '}
+                  <a href={plaque.photo.original_url} target="_blank" rel="noopener noreferrer">
+                    Open the original photo
+                  </a>
+                </>
+              )}
+            </figcaption>
           </figure>
         </Col>
       </Row>
