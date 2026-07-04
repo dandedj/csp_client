@@ -212,12 +212,12 @@ a:hover {
 }
 .inscription--popup {
   padding: 0.25rem 0 0.5rem;
-  max-width: 15rem;
+  max-width: 17rem;
   font-size: 0.95rem;
   line-height: 1.5;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -424,6 +424,15 @@ a:hover {
 .leaflet-popup-content {
   font-family: var(--font-body);
   margin: 0.75rem 1rem;
+}
+/* Leaflet's default anchor color (#0078A8) outranks Bootstrap's button text
+   inside popups — force readable text on our buttons. */
+.leaflet-container a.btn-primary {
+  color: #fff;
+}
+.leaflet-container a.btn-primary:hover,
+.leaflet-container a.btn-primary:focus {
+  color: #fff;
 }
 
 /* Cluster bubbles themed to verdigris */

@@ -13,7 +13,10 @@ import 'leaflet/dist/leaflet.css';
 // Approximate centre of Cancer Survivors Park, Greenville, SC.
 const INITIAL_CENTER = [34.841326395062595, -82.39848640537643];
 const INITIAL_ZOOM = 17; // placeholder until the plaque bounds are framed
-const MAX_ZOOM = 19;
+// OSM tiles end at 19; deeper zooms upscale tiles so sub-meter plaque
+// spacing (same-wall plaques sit 0.3-6m apart) becomes separable.
+const TILE_MAX_NATIVE_ZOOM = 19;
+const MAX_ZOOM = 22;
 
 const markerIcon = (color) =>
   L.divIcon({
@@ -139,7 +142,7 @@ export default function MapPlaques() {
               else delete markerRefs.current[plaque.id];
             }}
           >
-            <Popup>
+            <Popup maxWidth={300}>
               <div className="marker-popup">
                 <InscriptionPanel text={plaque.text} variant="popup" />
                 <Link to={`/detail/${plaque.id}`} className="btn btn-primary btn-sm">
@@ -211,6 +214,7 @@ export default function MapPlaques() {
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          maxNativeZoom={TILE_MAX_NATIVE_ZOOM}
           maxZoom={MAX_ZOOM}
         />
         {parkGeoJSON && <GeoJSON data={parkGeoJSON} style={geoJsonStyle} />}
@@ -222,7 +226,8 @@ export default function MapPlaques() {
           ref={clusterRef}
           spiderfyOnMaxZoom
           showCoverageOnHover={false}
-          maxClusterRadius={50}
+          maxClusterRadius={40}
+          disableClusteringAtZoom={20}
         >
           {markerElements}
         </MarkerClusterGroup>
