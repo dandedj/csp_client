@@ -19,6 +19,9 @@ const PITCH_MAX = (55 * Math.PI) / 180;
 const DRAG_THRESHOLD = 6; // px of travel before a press stops counting as a tap
 const WHEEL_STEP = 0.01; // fraction of the path per wheel notch
 const QUAD_WIDTH = 0.35;
+// The face sits proud of its post (post radius + a hair) so the post supports
+// it from behind instead of skewering it.
+const QUAD_STANDOFF = 0.045;
 const DEFAULT_HEIGHT = 0.22;
 const MOUNT_Y = 1.05; // centre height of the plaque quad on its post
 const HOVER_LIFT = 0.05;
@@ -341,7 +344,7 @@ function PlaqueField({ placements, curveSamples, curve, selectablesRef }) {
             }}
             geometry={planeGeometry}
             material={placeholderMaterial}
-            position={[0, MOUNT_Y, 0]}
+            position={[0, MOUNT_Y, QUAD_STANDOFF]}
             scale={[QUAD_WIDTH, DEFAULT_HEIGHT, 1]}
           />
         </group>
