@@ -8,7 +8,7 @@ import {
   railParameter,
   railPlacement
 } from '../../utils/geo3d';
-import { renderPlaqueCanvas, ensurePlaqueFont } from '../../utils/plaqueTexture';
+import { renderPlaqueCanvas, renderBlankPlaqueCanvas, ensurePlaqueFont } from '../../utils/plaqueTexture';
 
 // ---- Scene tuning (metres / radians / seconds) --------------------------
 const EYE_HEIGHT = 1.6;
@@ -26,11 +26,11 @@ const DEFAULT_HEIGHT = 0.22;
 const MOUNT_Y = 1.05; // centre height of the plaque quad on its post
 const HOVER_LIFT = 0.05;
 const LATERAL_OFFSET = 2.0; // fixed distance of each rail from the path
-const LOAD_RADIUS = 22; // start texturing within this distance (dense rail)
-const UNLOAD_RADIUS = 28; // drop the texture past this distance (hysteresis)
+const LOAD_RADIUS = 24; // start texturing within this distance (dense rail)
+const UNLOAD_RADIUS = 32; // drop the texture past this distance (hysteresis)
 const TEXTURE_INTERVAL = 12; // frames between texture passes
-const MAX_LOADS_PER_TICK = 4;
-const TEXTURE_BUDGET = 160;
+const MAX_LOADS_PER_TICK = 6;
+const TEXTURE_BUDGET = 240;
 const RIBBON_WIDTH = 1.8;
 const CURVE_SAMPLES = 200;
 
@@ -137,10 +137,17 @@ function PlaqueField({ placements, curveSamples, curve, selectablesRef }) {
 
   const planeGeometry = useMemo(() => new THREE.PlaneGeometry(1, 1), []);
   const postGeometry = useMemo(() => new THREE.CylinderGeometry(0.02, 0.02, 1, 6), []);
-  const placeholderMaterial = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: PLAQUE_PURPLE, side: THREE.DoubleSide }),
-    []
-  );
+  const placeholderMaterial = useMemo(() => {
+    // A shared blank bronze plate: far/unstreamed plaques blend into the rail
+    // instead of flashing purple while the cache churns.
+    try {
+      const texture = new THREE.CanvasTexture(renderBlankPlaqueCanvas());
+      texture.colorSpace = THREE.SRGBColorSpace;
+      return new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+    } catch (error) {
+      return new THREE.MeshBasicMaterial({ color: PLAQUE_PURPLE, side: THREE.DoubleSide });
+    }
+  }, []);
   const postMaterial = useMemo(
     () => new THREE.MeshStandardMaterial({ color: POST_DARK, roughness: 0.85, metalness: 0.1 }),
     []
@@ -286,7 +293,11 @@ function PlaqueField({ placements, curveSamples, curve, selectablesRef }) {
     if (frame.current % TEXTURE_INTERVAL !== 0) {
       return;
     }
-    let facesThisTick = 0;
+    // Nearest-first fill: where the path winds close to itself, plaques from
+    // an adjacent stretch also fall inside the radius; filling by array order
+    // let them evict the ones right in front of the visitor (cache churn that
+    // showed as purple flicker while panning).
+    const candidates = [];
     for (let i = 0; i < built.length; i += 1) {
       const placement = built[i];
       const state = runtime.current[i];
@@ -299,18 +310,18 @@ function PlaqueField({ placements, curveSamples, curve, selectablesRef }) {
       if (distance <= LOAD_RADIUS) {
         if (state.textured) {
           lru.get(placement.id); // refresh recency
-        } else if (
-          !state.failed &&
-          placement.hasFace &&
-          fontReady.current &&
-          facesThisTick < MAX_LOADS_PER_TICK
-        ) {
-          facesThisTick += 1;
-          generateFace(placement, i);
+        } else if (!state.failed && placement.hasFace && fontReady.current) {
+          candidates.push([distance, i]);
         }
       } else if (distance > UNLOAD_RADIUS && state.textured) {
         lru.delete(placement.id); // → revert() via eviction hook
       }
+    }
+    candidates.sort((a, b) => a[0] - b[0]);
+    const budget = Math.min(MAX_LOADS_PER_TICK, candidates.length);
+    for (let k = 0; k < budget; k += 1) {
+      const index = candidates[k][1];
+      generateFace(built[index], index);
     }
   });
 
