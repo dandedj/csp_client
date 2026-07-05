@@ -459,15 +459,17 @@ a:hover {
   color: #fff;
 }
 
-/* Cluster bubbles themed to lavender */
-.marker-cluster-small,
-.marker-cluster-medium,
-.marker-cluster-large {
+/* Cluster bubbles themed to lavender/purple. The library's own stylesheet
+   loads with the lazy map chunk (after this file), so these need the extra
+   .leaflet-container ancestor to win the cascade. */
+.leaflet-container .marker-cluster-small,
+.leaflet-container .marker-cluster-medium,
+.leaflet-container .marker-cluster-large {
   background-color: rgba(166, 123, 218, 0.4);
 }
-.marker-cluster-small div,
-.marker-cluster-medium div,
-.marker-cluster-large div {
+.leaflet-container .marker-cluster-small div,
+.leaflet-container .marker-cluster-medium div,
+.leaflet-container .marker-cluster-large div {
   background-color: rgba(70, 29, 125, 0.9);
   color: #fff;
   font-family: var(--font-mono);
