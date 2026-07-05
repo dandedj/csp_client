@@ -16,6 +16,9 @@ import { logPageView } from './firebase';
 const MapPlaques = lazyWithReload(() => import('./components/Plaques/MapPlaques'));
 const ListPlaques = lazyWithReload(() => import('./components/Plaques/ListPlaques'));
 const PlaqueDetail = lazyWithReload(() => import('./components/Plaques/PlaqueDetail'));
+// The three.js walk is heavy; keep it in its own lazy chunk so the initial
+// bundle never pays for it.
+const WalkPage = lazyWithReload(() => import('./components/Walk/WalkPage'));
 
 function PageViewLogger() {
   const location = useLocation();
@@ -45,6 +48,7 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<MapPlaques />} />
                 <Route path="/map" element={<MapPlaques />} />
+                <Route path="/walk" element={<WalkPage />} />
                 <Route path="/plaques" element={<ListPlaques />} />
                 <Route path="/detail/:id" element={<PlaqueDetail />} />
               </Routes>

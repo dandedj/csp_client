@@ -567,6 +567,178 @@ a:hover {
   min-height: 40vh;
 }
 
+/* ---- Walk (3D park walkthrough) ---- */
+.walk {
+  position: relative;
+  height: calc(100dvh - 7.25rem);
+  min-height: 26rem;
+  overflow: hidden;
+  background-color: #e9e4f2; /* matches the scene sky/fog while loading */
+  touch-action: none;
+}
+.walk__canvas {
+  position: absolute;
+  inset: 0;
+}
+.walk__canvas canvas {
+  display: block;
+  outline: none;
+}
+.walk__loading,
+.walk-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.walk-fallback {
+  background-color: var(--paper);
+}
+
+.walk-chip {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.5rem 0.9rem;
+  background-color: rgba(255, 255, 255, 0.92);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+}
+.walk-chip__title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--purple-deep);
+  line-height: 1.15;
+}
+.walk-chip__count {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--purple-dark);
+}
+
+.walk-hint {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.4rem 0.9rem;
+  max-width: 90%;
+  text-align: center;
+  background-color: rgba(70, 29, 125, 0.88);
+  color: var(--paper);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 600ms ease;
+}
+.walk-hint--hidden {
+  opacity: 0;
+}
+
+.walk-controls {
+  position: absolute;
+  right: 1rem;
+  bottom: 2.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.6rem;
+}
+.walk-controls__move {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.walk-btn {
+  font-family: var(--font-display);
+  border: 1px solid var(--purple);
+  background-color: rgba(255, 255, 255, 0.94);
+  color: var(--purple-deep);
+  border-radius: 999px;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+.walk-btn--auto {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+}
+.walk-btn--auto[aria-pressed='true'] {
+  background-color: var(--purple-deep);
+  border-color: var(--purple-deep);
+  color: #fff;
+}
+.walk-btn--move {
+  width: 3.25rem;
+  height: 3.25rem;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+.walk-btn--move:active {
+  background-color: var(--purple);
+  color: #fff;
+}
+
+.walk-progress {
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  bottom: 1rem;
+  height: 6px;
+  border-radius: 999px;
+  background-color: rgba(70, 29, 125, 0.18);
+  overflow: hidden;
+}
+.walk-progress__fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background-color: var(--accent-orange);
+  border-radius: 999px;
+}
+
+.walk-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(92%, 26rem);
+  padding: 1.1rem 1.25rem 1.15rem;
+  background-color: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+.walk-card__dismiss {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.6rem;
+  border: none;
+  background: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--purple-dark);
+  cursor: pointer;
+}
+.walk-card__actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 0.85rem;
+}
+
 /* ---- Motion preferences ---- */
 @media (prefers-reduced-motion: reduce) {
   .plaque-card,
@@ -577,5 +749,8 @@ a:hover {
   }
   .inscription--hero {
     animation: none;
+  }
+  .walk-hint {
+    transition: none;
   }
 }
