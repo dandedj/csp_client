@@ -87,3 +87,56 @@ export function nearestPointOnPath(samples, x, z) {
     distance: Math.sqrt(bestSquared)
   };
 }
+
+/**
+ * Signed lateral distance of a point from the path, measured along the path's
+ * left normal. Positive is to the left of the travel direction; the magnitude
+ * is the perpendicular distance in metres.
+ *
+ * @param {{x: number, z: number}} pathPoint Point on the path.
+ * @param {{x: number, z: number}} tangent Path tangent at that point (need not
+ *   be unit length — it is normalised internally).
+ * @param {{x: number, z: number}} point The point to measure.
+ * @returns {number} Signed perpendicular distance in metres.
+ */
+export function signedLateralOffset(pathPoint, tangent, point) {
+  const length = Math.hypot(tangent.x, tangent.z) || 1;
+  const tx = tangent.x / length;
+  const tz = tangent.z / length;
+  const dx = point.x - pathPoint.x;
+  const dz = point.z - pathPoint.z;
+  // 2-D cross product of the unit tangent with the offset vector, which equals
+  // the offset projected onto the left normal N = (-tz, tx).
+  return tx * dz - tz * dx;
+}
+
+/**
+ * Regularise a plaque's display position: keep the side it sits on relative to
+ * the path, but clamp its perpendicular distance into a tidy band so GPS
+ * jitter can't drop a plaque into the middle of the walkway or fling it far
+ * away.
+ *
+ * @param {{x: number, z: number}} pathPoint Nearest point on the path.
+ * @param {{x: number, z: number}} tangent Path tangent at that point.
+ * @param {{x: number, z: number}} point The plaque's true local position.
+ * @param {number} minOffset Minimum retained lateral distance (metres).
+ * @param {number} maxOffset Maximum retained lateral distance (metres).
+ * @returns {{x: number, z: number, offset: number, rawOffset: number}} The
+ *   display position, the applied signed offset, and the unclamped raw offset.
+ */
+export function regularizedPosition(pathPoint, tangent, point, minOffset, maxOffset) {
+  const length = Math.hypot(tangent.x, tangent.z) || 1;
+  const tx = tangent.x / length;
+  const tz = tangent.z / length;
+  const rawOffset = signedLateralOffset(pathPoint, { x: tx, z: tz }, point);
+  const sign = rawOffset < 0 ? -1 : 1;
+  const magnitude = Math.min(Math.max(Math.abs(rawOffset), minOffset), maxOffset);
+  const offset = sign * magnitude;
+  // Left normal N = (-tz, tx); move along it by the signed, clamped offset.
+  return {
+    x: pathPoint.x - tz * offset,
+    z: pathPoint.z + tx * offset,
+    offset,
+    rawOffset
+  };
+}

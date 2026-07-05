@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import createTextureLRU from '../../utils/textureLru';
-import { nearestPointOnPath } from '../../utils/geo3d';
+import { nearestPointOnPath, regularizedPosition } from '../../utils/geo3d';
+import { renderPlaqueCanvas, ensurePlaqueFont } from '../../utils/plaqueTexture';
 
 // ---- Scene tuning (metres / radians / seconds) --------------------------
 const EYE_HEIGHT = 1.6;
@@ -16,13 +17,17 @@ const QUAD_WIDTH = 0.35;
 const DEFAULT_HEIGHT = 0.22;
 const MOUNT_Y = 1.05; // centre height of the plaque quad on its post
 const HOVER_LIFT = 0.05;
+const LATERAL_MIN = 1.4; // clamp plaques to a tidy band beside the path
+const LATERAL_MAX = 5;
 const LOAD_RADIUS = 45; // start texturing within this distance
 const UNLOAD_RADIUS = 55; // drop the texture past this distance (hysteresis)
 const TEXTURE_INTERVAL = 12; // frames between texture passes
-const MAX_LOADS_PER_TICK = 4;
+const MAX_LOADS_PER_TICK = 3;
 const TEXTURE_BUDGET = 64;
 const RIBBON_WIDTH = 1.8;
 const CURVE_SAMPLES = 200;
+
+const EMPTY_TEXT = 'No text available';
 
 // ---- Palette (harmonised with brand.css) --------------------------------
 const SKY = 0xe9e4f2; // pale lavender-white, also the fog colour
@@ -111,11 +116,13 @@ function PathRibbon({ curve }) {
 
 /**
  * The field of standing plaques. Each is a shared post + a thin quad that
- * starts as a shared brand-purple placeholder and swaps to a cloned,
- * textured material once the camera comes within LOAD_RADIUS. Textures are
- * bounded by an LRU that disposes on eviction. Everything is driven
- * imperatively from a single throttled frame loop — no per-plaque React state
- * and no per-frame allocation.
+ * starts as a shared brand-purple placeholder and swaps to a cloned material
+ * carrying a locally generated engraved bronze face once the camera comes
+ * within LOAD_RADIUS. Faces are canvas-drawn (no network), but still bounded
+ * by an LRU that disposes the GPU texture on eviction. Plaques are placed
+ * laterally-regularised beside the path (their true GPS side is preserved, the
+ * distance clamped). Everything is driven imperatively from a single throttled
+ * frame loop — no per-plaque React state and no per-frame allocation.
  */
 function PlaqueField({ placements, curveSamples, selectablesRef }) {
   const { camera, gl } = useThree();
@@ -132,29 +139,48 @@ function PlaqueField({ placements, curveSamples, selectablesRef }) {
   );
   const texturedBase = useMemo(() => new THREE.MeshLambertMaterial({ color: 0xffffff }), []);
 
-  const loader = useMemo(() => {
-    const instance = new THREE.TextureLoader();
-    instance.crossOrigin = 'anonymous';
-    return instance;
-  }, []);
   const maxAnisotropy = useMemo(() => gl.capabilities.getMaxAnisotropy(), [gl]);
 
-  // Orient every plaque toward the nearest point on the walking path.
-  const built = useMemo(
-    () =>
-      placements.map((placement) => {
-        const near = nearestPointOnPath(curveSamples, placement.x, placement.z);
-        const facing = Math.atan2(near.x - placement.x, near.z - placement.z);
-        return { ...placement, facing };
-      }),
-    [placements, curveSamples]
-  );
+  // Regularise each plaque beside the path and orient it toward the path.
+  const built = useMemo(() => {
+    const count = curveSamples.length;
+    return placements.map((placement) => {
+      const near = nearestPointOnPath(curveSamples, placement.x, placement.z);
+      const before = curveSamples[Math.max(0, near.index - 1)];
+      const after = curveSamples[Math.min(count - 1, near.index + 1)];
+      const tangent = { x: after.x - before.x, z: after.z - before.z };
+      const display = regularizedPosition(
+        { x: near.x, z: near.z },
+        tangent,
+        { x: placement.x, z: placement.z },
+        LATERAL_MIN,
+        LATERAL_MAX
+      );
+      const facing = Math.atan2(near.x - display.x, near.z - display.z);
+      const trimmed = (placement.text || '').trim();
+      const hasFace = trimmed.length > 0 && trimmed !== EMPTY_TEXT;
+      return { id: placement.id, text: placement.text, x: display.x, z: display.z, facing, hasFace };
+    });
+  }, [placements, curveSamples]);
 
   const quadRefs = useRef([]);
   const runtime = useRef([]);
   if (runtime.current.length !== built.length) {
-    runtime.current = built.map(() => ({ textured: false, loading: false }));
+    runtime.current = built.map(() => ({ textured: false, failed: false }));
   }
+
+  const fontReady = useRef(false);
+  useEffect(() => {
+    let active = true;
+    ensurePlaqueFont().then(() => {
+      if (active) {
+        fontReady.current = true;
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const lru = useMemo(
     () =>
@@ -166,56 +192,47 @@ function PlaqueField({ placements, curveSamples, selectablesRef }) {
     []
   );
 
-  const loadTexture = (placement, index) => {
-    loader.load(
-      placement.url,
-      (texture) => {
-        const state = runtime.current[index];
-        const mesh = quadRefs.current[index];
-        if (state) {
-          state.loading = false;
+  const generateFace = (placement, index) => {
+    const state = runtime.current[index];
+    const mesh = quadRefs.current[index];
+    if (!mesh || !state) {
+      return;
+    }
+    let canvas;
+    try {
+      canvas = renderPlaqueCanvas(placement.text);
+    } catch (error) {
+      state.failed = true;
+      console.error('Failed to render plaque face', placement.id, error);
+      return;
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = maxAnisotropy;
+    texture.needsUpdate = true;
+    const material = texturedBase.clone();
+    material.map = texture;
+    material.needsUpdate = true;
+    mesh.material = material;
+    const aspect = canvas.width > 0 ? canvas.height / canvas.width : DEFAULT_HEIGHT / QUAD_WIDTH;
+    mesh.scale.set(QUAD_WIDTH, QUAD_WIDTH * aspect, 1);
+    state.textured = true;
+    lru.set(placement.id, {
+      revert: () => {
+        const revertMesh = quadRefs.current[index];
+        const revertState = runtime.current[index];
+        if (revertMesh) {
+          revertMesh.material = placeholderMaterial;
+          revertMesh.scale.set(QUAD_WIDTH, DEFAULT_HEIGHT, 1);
+          revertMesh.position.y = revertMesh.userData.baseY;
         }
-        if (!mesh || !state) {
-          texture.dispose();
-          return;
+        if (revertState) {
+          revertState.textured = false;
         }
-        texture.colorSpace = THREE.SRGBColorSpace;
-        texture.anisotropy = maxAnisotropy;
-        const material = texturedBase.clone();
-        material.map = texture;
-        material.needsUpdate = true;
-        mesh.material = material;
-        const image = texture.image;
-        const aspect = image && image.width ? image.height / image.width : DEFAULT_HEIGHT / QUAD_WIDTH;
-        mesh.scale.set(QUAD_WIDTH, QUAD_WIDTH * aspect, 1);
-        state.textured = true;
-        lru.set(placement.id, {
-          revert: () => {
-            const revertMesh = quadRefs.current[index];
-            const revertState = runtime.current[index];
-            if (revertMesh) {
-              revertMesh.material = placeholderMaterial;
-              revertMesh.scale.set(QUAD_WIDTH, DEFAULT_HEIGHT, 1);
-              revertMesh.position.y = revertMesh.userData.baseY;
-            }
-            if (revertState) {
-              revertState.textured = false;
-            }
-            material.dispose();
-            texture.dispose();
-          }
-        });
-      },
-      undefined,
-      (error) => {
-        const state = runtime.current[index];
-        if (state) {
-          state.loading = false;
-          state.failed = true;
-        }
-        console.error('Failed to load plaque texture', placement.id, error);
+        material.dispose();
+        texture.dispose();
       }
-    );
+    });
   };
 
   const frame = useRef(0);
@@ -224,7 +241,7 @@ function PlaqueField({ placements, curveSamples, selectablesRef }) {
     if (frame.current % TEXTURE_INTERVAL !== 0) {
       return;
     }
-    let loadsThisTick = 0;
+    let facesThisTick = 0;
     for (let i = 0; i < built.length; i += 1) {
       const placement = built[i];
       const state = runtime.current[i];
@@ -238,14 +255,13 @@ function PlaqueField({ placements, curveSamples, selectablesRef }) {
         if (state.textured) {
           lru.get(placement.id); // refresh recency
         } else if (
-          !state.loading &&
           !state.failed &&
-          placement.url &&
-          loadsThisTick < MAX_LOADS_PER_TICK
+          placement.hasFace &&
+          fontReady.current &&
+          facesThisTick < MAX_LOADS_PER_TICK
         ) {
-          state.loading = true;
-          loadsThisTick += 1;
-          loadTexture(placement, i);
+          facesThisTick += 1;
+          generateFace(placement, i);
         }
       } else if (distance > UNLOAD_RADIUS && state.textured) {
         lru.delete(placement.id); // → revert() via eviction hook

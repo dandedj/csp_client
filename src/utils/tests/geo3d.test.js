@@ -1,4 +1,10 @@
-import { pathCentroid, latLonToLocal, nearestPointOnPath } from '../geo3d';
+import {
+  pathCentroid,
+  latLonToLocal,
+  nearestPointOnPath,
+  signedLateralOffset,
+  regularizedPosition
+} from '../geo3d';
 
 describe('pathCentroid', () => {
   it('averages latitude and longitude', () => {
@@ -82,5 +88,61 @@ describe('nearestPointOnPath', () => {
     const result = nearestPointOnPath([], 0, 0);
     expect(result.index).toBe(-1);
     expect(result.distance).toBe(Infinity);
+  });
+});
+
+describe('signedLateralOffset', () => {
+  // Path point at the origin, tangent pointing +z (north into the scene).
+  const path = { x: 0, z: 0 };
+  const tangent = { x: 0, z: 1 };
+
+  it('is positive to the left of the travel direction', () => {
+    // Left of +z travel is -x.
+    expect(signedLateralOffset(path, tangent, { x: -2, z: 0 })).toBeCloseTo(2, 9);
+  });
+
+  it('is negative to the right of the travel direction', () => {
+    expect(signedLateralOffset(path, tangent, { x: 3, z: 0 })).toBeCloseTo(-3, 9);
+  });
+
+  it('ignores displacement along the tangent', () => {
+    expect(signedLateralOffset(path, tangent, { x: 0, z: 9 })).toBeCloseTo(0, 9);
+  });
+
+  it('normalises the tangent internally', () => {
+    expect(signedLateralOffset(path, { x: 0, z: 10 }, { x: -2, z: 0 })).toBeCloseTo(2, 9);
+  });
+});
+
+describe('regularizedPosition', () => {
+  const path = { x: 0, z: 0 };
+  const tangent = { x: 0, z: 1 }; // travelling +z, left normal is -x
+
+  it('clamps an over-far plaque inward while keeping its side', () => {
+    const result = regularizedPosition(path, tangent, { x: -12, z: 0 }, 1.4, 5);
+    expect(result.rawOffset).toBeCloseTo(12, 9);
+    expect(result.offset).toBeCloseTo(5, 9); // clamped to max
+    expect(result.x).toBeCloseTo(-5, 9); // still left
+    expect(result.z).toBeCloseTo(0, 9);
+  });
+
+  it('pushes a plaque sitting on the path out to the minimum band', () => {
+    const result = regularizedPosition(path, tangent, { x: 0, z: 0 }, 1.4, 5);
+    expect(Math.abs(result.offset)).toBeCloseTo(1.4, 9);
+    expect(Math.abs(result.x)).toBeCloseTo(1.4, 9);
+  });
+
+  it('keeps a plaque already within the band where it is (side preserved)', () => {
+    const result = regularizedPosition(path, tangent, { x: 3, z: 0 }, 1.4, 5);
+    expect(result.rawOffset).toBeCloseTo(-3, 9);
+    expect(result.offset).toBeCloseTo(-3, 9);
+    expect(result.x).toBeCloseTo(3, 9); // still right
+  });
+
+  it('offsets relative to the path point, not the origin', () => {
+    const result = regularizedPosition({ x: 10, z: 4 }, tangent, { x: 6, z: 4 }, 1.4, 5);
+    // Plaque is 4m to the left (-x) of the path point → within band, preserved.
+    expect(result.x).toBeCloseTo(6, 9);
+    expect(result.z).toBeCloseTo(4, 9);
   });
 });

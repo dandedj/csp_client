@@ -168,10 +168,11 @@ export default function WalkPage() {
           plaque.location.longitude,
           origin
         );
+        // Faces are generated locally from `text`; the true GPS position is
+        // regularised beside the path inside the scene.
         return {
           id: plaque.id,
           text: plaque.text,
-          url: plaque.photo?.plaque_url || null,
           x,
           z
         };
