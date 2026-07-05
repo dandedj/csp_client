@@ -3,7 +3,8 @@ import {
   latLonToLocal,
   nearestPointOnPath,
   signedLateralOffset,
-  regularizedPosition
+  railParameter,
+  railPlacement
 } from '../geo3d';
 
 describe('pathCentroid', () => {
@@ -114,35 +115,61 @@ describe('signedLateralOffset', () => {
   });
 });
 
-describe('regularizedPosition', () => {
-  const path = { x: 0, z: 0 };
-  const tangent = { x: 0, z: 1 }; // travelling +z, left normal is -x
-
-  it('clamps an over-far plaque inward while keeping its side', () => {
-    const result = regularizedPosition(path, tangent, { x: -12, z: 0 }, 1.4, 5);
-    expect(result.rawOffset).toBeCloseTo(12, 9);
-    expect(result.offset).toBeCloseTo(5, 9); // clamped to max
-    expect(result.x).toBeCloseTo(-5, 9); // still left
-    expect(result.z).toBeCloseTo(0, 9);
+describe('railParameter', () => {
+  it('centres plaques in equal segments (no plaque at the ends)', () => {
+    expect(railParameter(0, 4)).toBeCloseTo(0.125, 9);
+    expect(railParameter(1, 4)).toBeCloseTo(0.375, 9);
+    expect(railParameter(2, 4)).toBeCloseTo(0.625, 9);
+    expect(railParameter(3, 4)).toBeCloseTo(0.875, 9);
   });
 
-  it('pushes a plaque sitting on the path out to the minimum band', () => {
-    const result = regularizedPosition(path, tangent, { x: 0, z: 0 }, 1.4, 5);
-    expect(Math.abs(result.offset)).toBeCloseTo(1.4, 9);
-    expect(Math.abs(result.x)).toBeCloseTo(1.4, 9);
+  it('spaces consecutive plaques by a uniform pitch of 1/n', () => {
+    const n = 6;
+    const pitch = railParameter(1, n) - railParameter(0, n);
+    expect(pitch).toBeCloseTo(1 / n, 9);
+    expect(railParameter(4, n) - railParameter(3, n)).toBeCloseTo(1 / n, 9);
   });
 
-  it('keeps a plaque already within the band where it is (side preserved)', () => {
-    const result = regularizedPosition(path, tangent, { x: 3, z: 0 }, 1.4, 5);
-    expect(result.rawOffset).toBeCloseTo(-3, 9);
-    expect(result.offset).toBeCloseTo(-3, 9);
-    expect(result.x).toBeCloseTo(3, 9); // still right
+  it('puts a lone plaque at the midpoint and guards empty rails', () => {
+    expect(railParameter(0, 1)).toBeCloseTo(0.5, 9);
+    expect(railParameter(0, 0)).toBe(0);
+  });
+});
+
+describe('railPlacement', () => {
+  const curvePoint = { x: 0, z: 0 };
+  const tangent = { x: 0, z: 1 }; // travelling +z; left normal is (-1, 0)
+
+  it('offsets a left-side plaque to -x and faces it inward (+x)', () => {
+    const spot = railPlacement(curvePoint, tangent, 1, 2);
+    expect(spot.x).toBeCloseTo(-2, 9);
+    expect(spot.z).toBeCloseTo(0, 9);
+    // Inward is +x: rotation.y = atan2(1, 0) = +PI/2.
+    expect(spot.facing).toBeCloseTo(Math.PI / 2, 9);
   });
 
-  it('offsets relative to the path point, not the origin', () => {
-    const result = regularizedPosition({ x: 10, z: 4 }, tangent, { x: 6, z: 4 }, 1.4, 5);
-    // Plaque is 4m to the left (-x) of the path point → within band, preserved.
-    expect(result.x).toBeCloseTo(6, 9);
-    expect(result.z).toBeCloseTo(4, 9);
+  it('offsets a right-side plaque to +x and faces it inward (-x)', () => {
+    const spot = railPlacement(curvePoint, tangent, -1, 2);
+    expect(spot.x).toBeCloseTo(2, 9);
+    expect(spot.z).toBeCloseTo(0, 9);
+    expect(spot.facing).toBeCloseTo(-Math.PI / 2, 9);
+  });
+
+  it('places relative to the given curve point and normalises the tangent', () => {
+    const spot = railPlacement({ x: 10, z: 5 }, { x: 0, z: 8 }, 1, 2);
+    expect(spot.x).toBeCloseTo(8, 9); // 10 + (-1)*2
+    expect(spot.z).toBeCloseTo(5, 9);
+  });
+
+  it('faces exactly opposite its outward offset direction', () => {
+    const side = 1;
+    const spot = railPlacement(curvePoint, { x: 1, z: 1 }, side, 3);
+    // Outward direction from the curve point to the plaque.
+    const outX = spot.x - curvePoint.x;
+    const outZ = spot.z - curvePoint.z;
+    const outwardYaw = Math.atan2(outX, outZ);
+    // Facing is inward: 180° from outward.
+    const delta = Math.abs(((spot.facing - outwardYaw + Math.PI) % (2 * Math.PI)) - Math.PI);
+    expect(Math.min(delta, 2 * Math.PI - delta)).toBeCloseTo(Math.PI, 6);
   });
 });
