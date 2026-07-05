@@ -2,7 +2,12 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import createTextureLRU from '../../utils/textureLru';
-import { nearestPointOnPath, regularizedPosition } from '../../utils/geo3d';
+import {
+  nearestPointOnPath,
+  signedLateralOffset,
+  railParameter,
+  railPlacement
+} from '../../utils/geo3d';
 import { renderPlaqueCanvas, ensurePlaqueFont } from '../../utils/plaqueTexture';
 
 // ---- Scene tuning (metres / radians / seconds) --------------------------
@@ -14,16 +19,18 @@ const PITCH_MAX = (55 * Math.PI) / 180;
 const DRAG_THRESHOLD = 6; // px of travel before a press stops counting as a tap
 const WHEEL_STEP = 0.01; // fraction of the path per wheel notch
 const QUAD_WIDTH = 0.35;
+// The face sits proud of its post (post radius + a hair) so the post supports
+// it from behind instead of skewering it.
+const QUAD_STANDOFF = 0.045;
 const DEFAULT_HEIGHT = 0.22;
 const MOUNT_Y = 1.05; // centre height of the plaque quad on its post
 const HOVER_LIFT = 0.05;
-const LATERAL_MIN = 1.4; // clamp plaques to a tidy band beside the path
-const LATERAL_MAX = 5;
-const LOAD_RADIUS = 45; // start texturing within this distance
-const UNLOAD_RADIUS = 55; // drop the texture past this distance (hysteresis)
+const LATERAL_OFFSET = 2.0; // fixed distance of each rail from the path
+const LOAD_RADIUS = 22; // start texturing within this distance (dense rail)
+const UNLOAD_RADIUS = 28; // drop the texture past this distance (hysteresis)
 const TEXTURE_INTERVAL = 12; // frames between texture passes
-const MAX_LOADS_PER_TICK = 3;
-const TEXTURE_BUDGET = 64;
+const MAX_LOADS_PER_TICK = 4;
+const TEXTURE_BUDGET = 160;
 const RIBBON_WIDTH = 1.8;
 const CURVE_SAMPLES = 200;
 
@@ -119,18 +126,19 @@ function PathRibbon({ curve }) {
  * starts as a shared brand-purple placeholder and swaps to a cloned material
  * carrying a locally generated engraved bronze face once the camera comes
  * within LOAD_RADIUS. Faces are canvas-drawn (no network), but still bounded
- * by an LRU that disposes the GPU texture on eviction. Plaques are placed
- * laterally-regularised beside the path (their true GPS side is preserved, the
- * distance clamped). Everything is driven imperatively from a single throttled
+ * by an LRU that disposes the GPU texture on eviction. Plaques are laid out on
+ * two even rails — from each plaque's true position only its side and its
+ * arc-length order are kept, then each side is spaced uniformly along the path
+ * and faced inward. Everything is driven imperatively from a single throttled
  * frame loop — no per-plaque React state and no per-frame allocation.
  */
-function PlaqueField({ placements, curveSamples, selectablesRef }) {
+function PlaqueField({ placements, curveSamples, curve, selectablesRef }) {
   const { camera, gl } = useThree();
 
   const planeGeometry = useMemo(() => new THREE.PlaneGeometry(1, 1), []);
   const postGeometry = useMemo(() => new THREE.CylinderGeometry(0.02, 0.02, 1, 6), []);
   const placeholderMaterial = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: PLAQUE_PURPLE }),
+    () => new THREE.MeshBasicMaterial({ color: PLAQUE_PURPLE, side: THREE.DoubleSide }),
     []
   );
   const postMaterial = useMemo(
@@ -141,27 +149,58 @@ function PlaqueField({ placements, curveSamples, selectablesRef }) {
 
   const maxAnisotropy = useMemo(() => gl.capabilities.getMaxAnisotropy(), [gl]);
 
-  // Regularise each plaque beside the path and orient it toward the path.
+  // Two even rails. Keep only each plaque's side and arc-length order from its
+  // true position; then space each side uniformly and face it inward.
   const built = useMemo(() => {
-    const count = curveSamples.length;
-    return placements.map((placement) => {
+    const sampleCount = curveSamples.length;
+    const derived = placements.map((placement) => {
       const near = nearestPointOnPath(curveSamples, placement.x, placement.z);
       const before = curveSamples[Math.max(0, near.index - 1)];
-      const after = curveSamples[Math.min(count - 1, near.index + 1)];
+      const after = curveSamples[Math.min(sampleCount - 1, near.index + 1)];
       const tangent = { x: after.x - before.x, z: after.z - before.z };
-      const display = regularizedPosition(
+      const rawOffset = signedLateralOffset(
         { x: near.x, z: near.z },
         tangent,
-        { x: placement.x, z: placement.z },
-        LATERAL_MIN,
-        LATERAL_MAX
+        { x: placement.x, z: placement.z }
       );
-      const facing = Math.atan2(near.x - display.x, near.z - display.z);
       const trimmed = (placement.text || '').trim();
-      const hasFace = trimmed.length > 0 && trimmed !== EMPTY_TEXT;
-      return { id: placement.id, text: placement.text, x: display.x, z: display.z, facing, hasFace };
+      return {
+        id: placement.id,
+        text: placement.text,
+        sIndex: near.index,
+        side: rawOffset < 0 ? -1 : 1,
+        hasFace: trimmed.length > 0 && trimmed !== EMPTY_TEXT
+      };
     });
-  }, [placements, curveSamples]);
+
+    const point = new THREE.Vector3();
+    const tangent = new THREE.Vector3();
+    const placed = [];
+    for (const side of [1, -1]) {
+      const rail = derived.filter((item) => item.side === side).sort((a, b) => a.sIndex - b.sIndex);
+      for (let i = 0; i < rail.length; i += 1) {
+        const u = railParameter(i, rail.length);
+        curve.getPointAt(u, point);
+        curve.getTangentAt(u, tangent);
+        const spot = railPlacement(
+          { x: point.x, z: point.z },
+          { x: tangent.x, z: tangent.z },
+          side,
+          LATERAL_OFFSET
+        );
+        const item = rail[i];
+        placed.push({
+          id: item.id,
+          text: item.text,
+          x: spot.x,
+          z: spot.z,
+          facing: spot.facing,
+          hasFace: item.hasFace
+        });
+      }
+    }
+    return placed;
+  }, [placements, curveSamples, curve]);
 
   const quadRefs = useRef([]);
   const runtime = useRef([]);
@@ -305,7 +344,7 @@ function PlaqueField({ placements, curveSamples, selectablesRef }) {
             }}
             geometry={planeGeometry}
             material={placeholderMaterial}
-            position={[0, MOUNT_Y, 0]}
+            position={[0, MOUNT_Y, QUAD_STANDOFF]}
             scale={[QUAD_WIDTH, DEFAULT_HEIGHT, 1]}
           />
         </group>
@@ -530,7 +569,12 @@ function SceneContents({ pathLocal, placements, controlsRef, progressRef, onSele
       <Lights />
       <Ground />
       <PathRibbon curve={curve} />
-      <PlaqueField placements={placements} curveSamples={curveSamples} selectablesRef={selectablesRef} />
+      <PlaqueField
+        placements={placements}
+        curveSamples={curveSamples}
+        curve={curve}
+        selectablesRef={selectablesRef}
+      />
       <CameraRig curve={curve} pathLength={pathLength} controlsRef={controlsRef} progressRef={progressRef} />
       <WalkControls controlsRef={controlsRef} selectablesRef={selectablesRef} onSelect={onSelect} />
     </>

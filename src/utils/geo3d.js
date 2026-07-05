@@ -111,32 +111,47 @@ export function signedLateralOffset(pathPoint, tangent, point) {
 }
 
 /**
- * Regularise a plaque's display position: keep the side it sits on relative to
- * the path, but clamp its perpendicular distance into a tidy band so GPS
- * jitter can't drop a plaque into the middle of the walkway or fling it far
- * away.
+ * Evenly-spaced arc-length parameter for the i-th of n plaques on a rail. The
+ * plaques are placed at the centres of n equal segments, so no plaque lands
+ * exactly on the path's start or end and the spacing (pitch) is uniform.
  *
- * @param {{x: number, z: number}} pathPoint Nearest point on the path.
- * @param {{x: number, z: number}} tangent Path tangent at that point.
- * @param {{x: number, z: number}} point The plaque's true local position.
- * @param {number} minOffset Minimum retained lateral distance (metres).
- * @param {number} maxOffset Maximum retained lateral distance (metres).
- * @returns {{x: number, z: number, offset: number, rawOffset: number}} The
- *   display position, the applied signed offset, and the unclamped raw offset.
+ * @param {number} index Zero-based plaque index within its side.
+ * @param {number} count Number of plaques on that side.
+ * @returns {number} Normalised arc-length parameter in [0, 1].
  */
-export function regularizedPosition(pathPoint, tangent, point, minOffset, maxOffset) {
+export function railParameter(index, count) {
+  if (count <= 0) {
+    return 0;
+  }
+  return (index + 0.5) / count;
+}
+
+/**
+ * Place a plaque on a side rail: offset a point on the path along that side's
+ * outward normal by a fixed distance, and face the plaque inward
+ * (perpendicular, toward the walkway).
+ *
+ * @param {{x: number, z: number}} curvePoint Point on the path at the plaque's
+ *   rail parameter.
+ * @param {{x: number, z: number}} tangent Path tangent there (need not be unit
+ *   length — normalised internally).
+ * @param {number} side +1 for the left of the travel direction, -1 for the
+ *   right.
+ * @param {number} offset Lateral distance from the path in metres.
+ * @returns {{x: number, z: number, facing: number}} Display position and the
+ *   inward-facing yaw (rotation about y).
+ */
+export function railPlacement(curvePoint, tangent, side, offset) {
   const length = Math.hypot(tangent.x, tangent.z) || 1;
   const tx = tangent.x / length;
   const tz = tangent.z / length;
-  const rawOffset = signedLateralOffset(pathPoint, { x: tx, z: tz }, point);
-  const sign = rawOffset < 0 ? -1 : 1;
-  const magnitude = Math.min(Math.max(Math.abs(rawOffset), minOffset), maxOffset);
-  const offset = sign * magnitude;
-  // Left normal N = (-tz, tx); move along it by the signed, clamped offset.
+  // Left normal is (-tz, tx); the outward normal for this side scales it by
+  // the sign. The plaque sits outward and faces back inward.
+  const outX = -tz * side;
+  const outZ = tx * side;
   return {
-    x: pathPoint.x - tz * offset,
-    z: pathPoint.z + tx * offset,
-    offset,
-    rawOffset
+    x: curvePoint.x + outX * offset,
+    z: curvePoint.z + outZ * offset,
+    facing: Math.atan2(-outX, -outZ)
   };
 }

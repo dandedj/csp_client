@@ -80,7 +80,16 @@ export default function WalkPage() {
   const [autoWalk, setAutoWalk] = useState(false);
   const [hintVisible, setHintVisible] = useState(true);
 
-  const controlsRef = useRef({ t: 0, yaw: 0, pitch: 0, forward: 0, back: 0, autoWalk: false });
+  // Bias the initial look ~8° down so the ground, path, and plaques — not the
+  // sky — fill the first frame.
+  const controlsRef = useRef({
+    t: 0,
+    yaw: 0,
+    pitch: -(8 * Math.PI) / 180,
+    forward: 0,
+    back: 0,
+    autoWalk: false
+  });
   const progressRef = useRef(null);
 
   const webglOk = useMemo(() => isWebGLAvailable(), []);
