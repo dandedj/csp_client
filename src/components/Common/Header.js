@@ -22,6 +22,9 @@ export default function Header() {
             <Nav.Link as={NavLink} to="/" end>
               Map
             </Nav.Link>
+            <Nav.Link as={NavLink} to="/walk">
+              Walk
+            </Nav.Link>
             <Nav.Link as={NavLink} to="/plaques">
               All plaques
             </Nav.Link>
