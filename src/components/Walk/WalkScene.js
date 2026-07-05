@@ -248,11 +248,17 @@ function PlaqueField({ placements, curveSamples, curve, selectablesRef }) {
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = maxAnisotropy;
+    // Default [0,1] UVs with clamped edges: no wrap-around bleed at the face's
+    // top/side borders.
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
     texture.needsUpdate = true;
     const material = texturedBase.clone();
     material.map = texture;
     material.needsUpdate = true;
     mesh.material = material;
+    // Aspect comes from the final canvas dimensions so the quad matches the
+    // rendered face exactly (no stretched band).
     const aspect = canvas.width > 0 ? canvas.height / canvas.width : DEFAULT_HEIGHT / QUAD_WIDTH;
     mesh.scale.set(QUAD_WIDTH, QUAD_WIDTH * aspect, 1);
     state.textured = true;
