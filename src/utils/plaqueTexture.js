@@ -167,6 +167,35 @@ export function renderPlaqueCanvas(text, options = {}) {
 }
 
 /**
+ * Draw a small blank bronze plate (gradient, border, screws, no text) used as
+ * the shared placeholder texture for plaques whose face has not streamed in.
+ *
+ * @returns {HTMLCanvasElement}
+ */
+export function renderBlankPlaqueCanvas(width = 256, height = 128) {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, 0, height);
+  gradient.addColorStop(0, BRONZE_TOP);
+  gradient.addColorStop(1, BRONZE_BOTTOM);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+  const inset = Math.round(width * 0.035);
+  ctx.lineWidth = Math.max(2, Math.round(width * 0.006));
+  ctx.strokeStyle = BORDER_COLOR;
+  ctx.strokeRect(inset, inset, width - inset * 2, height - inset * 2);
+  const screwR = Math.max(2, Math.round(width * 0.012));
+  const screwPad = inset + screwR * 1.6;
+  drawScrew(ctx, screwPad, screwPad, screwR);
+  drawScrew(ctx, width - screwPad, screwPad, screwR);
+  drawScrew(ctx, screwPad, height - screwPad, screwR);
+  drawScrew(ctx, width - screwPad, height - screwPad, screwR);
+  return canvas;
+}
+
+/**
  * Ensure the plaque font is loaded before the first faces are drawn, so early
  * textures don't rasterise in a fallback font. Resolves even if the Font
  * Loading API is unavailable or the load fails (drawing then falls back to the
