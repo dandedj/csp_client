@@ -52,10 +52,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-test('renders the shell with the brand wordmark and navigation', async () => {
+test('renders the shell with the brand logo and navigation', async () => {
   render(<App />);
 
-  expect(await screen.findByText('Cancer Survivors Park')).toBeInTheDocument();
+  expect(await screen.findByAltText('Cancer Survivors Park Alliance')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Map' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'All plaques' })).toBeInTheDocument();
 });

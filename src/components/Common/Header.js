@@ -10,8 +10,11 @@ export default function Header() {
     <Navbar expand="md" className="site-header" collapseOnSelect>
       <Container>
         <Navbar.Brand as={Link} to="/" className="site-brand">
-          <span className="site-brand__name">Cancer Survivors Park</span>
-          <span className="site-brand__place">Greenville, SC</span>
+          <img
+            src="/cspa-logo.png"
+            alt="Cancer Survivors Park Alliance"
+            className="site-brand__logo"
+          />
         </Navbar.Brand>
         <Navbar.Toggle aria-controls="site-nav" />
         <Navbar.Collapse id="site-nav">

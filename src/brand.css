@@ -5,67 +5,71 @@
  * is spent on the inscription panel (the transcribed plaque text as an
  * engraving); everything else stays calm.
  *
+ * Palette matches cancersurvivorspark.org (CSPA): white base, deep-purple
+ * actions, lavender + logo-moss accents, orange highlights, Josefin Sans
+ * display, EB Garamond inscriptions, IBM Plex Sans body.
+ *
  * WCAG AA contrast (relative-luminance formula, computed):
- *   granite  #24291F on fog    #F2F4F0 ... 13.4:1  body text            ✓
- *   fog      #F2F4F0 on canopy #1F3D2B ... 10.8:1  header / footer      ✓
- *   white    #FFFFFF on verdigris #3E7A66 . 5.0:1  primary buttons      ✓
- *   verdigris#3E7A66 on fog    #F2F4F0 ...  4.54:1 links (>= 4.5)        ✓
- *   verdigris-deep #2F5E4F on fog ........  6.7:1  link hover / meta     ✓
- *   bronze   #A8834B on fog    #F2F4F0 ...  3.2:1  -> graphical only
- *   bronze   #A8834B on canopy #1F3D2B ...  3.4:1  active-nav underline  ✓ (>=3:1)
- * Bronze never carries text (it fails 4.5:1 on fog); it is used only for the
- * selected marker, an icon, and the active-nav underline. The old
- * white-on-green consensus badges were ~3:1 and failed AA; they are gone.
+ *   ink    #313131 on paper #FFFFFF ...... 13.0:1  body text             ✓
+ *   purple #542989 on paper #FFFFFF ...... 10.2:1  links / headings      ✓
+ *   white  #FFFFFF on purple-deep #461D7D  12.1:1  buttons / footer      ✓
+ *   purple-deep #461D7D on panel #F7F5FA . 11.2:1  inscription text      ✓
+ *   orange #F89D35 on purple-deep ........  5.7:1  active underline      ✓ (>=3:1)
+ *   lavender #A67BDA / moss #90A878 on paper: decorative only (<4.5:1) —
+ *   they never carry text.
  */
 
 :root {
-  --fog: #f2f4f0;
-  --fog-panel: #e7eae2; /* subtly darker fog for the engraved plate */
-  --granite: #24291f;
-  --canopy: #1f3d2b;
-  --verdigris: #3e7a66;
-  --verdigris-deep: #2f5e4f;
-  --bronze: #a8834b;
-  --hairline: rgba(62, 122, 102, 0.5);
+  --paper: #ffffff;
+  --panel: #f7f5fa; /* lavender-tinted plate behind inscriptions */
+  --ink: #313131;
+  --purple-deep: #461d7d;
+  --purple: #542989;
+  --purple-dark: #3a1c60;
+  --accent-orange: #f89d35;
+  --lavender: #a67bda;
+  --moss: #90a878; /* the green of the CSPA logo artwork; decorative only */
+  --hairline: rgba(166, 123, 218, 0.55);
 
   --card-bg: #ffffff;
-  --border-soft: rgba(36, 41, 31, 0.1);
-  --shadow-sm: 0 1px 3px rgba(36, 41, 31, 0.08);
-  --shadow-md: 0 6px 20px rgba(36, 41, 31, 0.14);
+  --border-soft: rgba(49, 49, 49, 0.1);
+  --shadow-sm: 0 1px 3px rgba(49, 49, 49, 0.08);
+  --shadow-md: 0 6px 20px rgba(49, 49, 49, 0.14);
   --radius: 10px;
 
-  --font-display: 'Marcellus', Georgia, 'Times New Roman', serif;
-  --font-body: 'Alegreya Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Josefin Sans', 'Trebuchet MS', sans-serif;
+  --font-inscription: 'EB Garamond', Garamond, Georgia, serif;
+  --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
 
   /* Bootstrap runtime overrides */
-  --bs-body-bg: var(--fog);
-  --bs-body-color: var(--granite);
+  --bs-body-bg: var(--paper);
+  --bs-body-color: var(--ink);
   --bs-body-font-family: var(--font-body);
-  --bs-link-color: var(--verdigris);
-  --bs-link-hover-color: var(--verdigris-deep);
-  --bs-emphasis-color: var(--granite);
+  --bs-link-color: var(--purple);
+  --bs-link-hover-color: var(--purple-dark);
+  --bs-emphasis-color: var(--ink);
 }
 
 body {
-  background-color: var(--fog);
-  color: var(--granite);
+  background-color: var(--paper);
+  color: var(--ink);
   font-family: var(--font-body);
   line-height: 1.6;
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
-  color: var(--granite);
+  color: var(--ink);
   letter-spacing: 0.01em;
 }
 
 a {
-  color: var(--verdigris);
+  color: var(--purple);
   text-decoration: none;
 }
 a:hover {
-  color: var(--verdigris-deep);
+  color: var(--purple-dark);
   text-decoration: underline;
 }
 
@@ -74,58 +78,72 @@ a:hover {
   font-family: var(--font-mono);
   font-size: 0.78rem;
   letter-spacing: 0.02em;
-  color: var(--verdigris-deep);
+  color: var(--purple-dark);
   margin: 0;
 }
 
-/* ---- Buttons (Bootstrap 5.3 uses --bs-btn-* at runtime) ---- */
+/* ---- Buttons (Bootstrap 5.3 uses --bs-btn-* at runtime) ----
+   CSPA house style: deep-purple pills, uppercase Josefin Sans. */
+.btn {
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 999px;
+}
 .btn-primary {
-  --bs-btn-bg: var(--verdigris);
-  --bs-btn-border-color: var(--verdigris);
+  --bs-btn-bg: var(--purple-deep);
+  --bs-btn-border-color: var(--purple-deep);
   --bs-btn-color: #fff;
-  --bs-btn-hover-bg: var(--verdigris-deep);
-  --bs-btn-hover-border-color: var(--verdigris-deep);
+  --bs-btn-hover-bg: var(--purple);
+  --bs-btn-hover-border-color: var(--purple);
   --bs-btn-hover-color: #fff;
-  --bs-btn-active-bg: var(--verdigris-deep);
-  --bs-btn-active-border-color: var(--verdigris-deep);
+  --bs-btn-active-bg: var(--purple);
+  --bs-btn-active-border-color: var(--purple);
   --bs-btn-active-color: #fff;
-  --bs-btn-disabled-bg: var(--verdigris);
-  --bs-btn-disabled-border-color: var(--verdigris);
+  --bs-btn-disabled-bg: var(--purple-deep);
+  --bs-btn-disabled-border-color: var(--purple-deep);
   --bs-btn-disabled-color: #fff;
 }
 .btn-outline-primary {
-  --bs-btn-color: var(--verdigris-deep);
-  --bs-btn-border-color: var(--verdigris);
-  --bs-btn-hover-bg: var(--verdigris);
-  --bs-btn-hover-border-color: var(--verdigris);
+  --bs-btn-color: var(--purple-dark);
+  --bs-btn-border-color: var(--purple);
+  --bs-btn-hover-bg: var(--purple);
+  --bs-btn-hover-border-color: var(--purple);
   --bs-btn-hover-color: #fff;
-  --bs-btn-active-bg: var(--verdigris);
-  --bs-btn-active-border-color: var(--verdigris);
+  --bs-btn-active-bg: var(--purple);
+  --bs-btn-active-border-color: var(--purple);
   --bs-btn-active-color: #fff;
 }
 
 .form-control:focus {
-  border-color: var(--verdigris);
-  box-shadow: 0 0 0 0.2rem rgba(62, 122, 102, 0.25);
+  border-color: var(--purple);
+  box-shadow: 0 0 0 0.2rem rgba(84, 41, 137, 0.25);
 }
 
 /* ---- Focus visibility ---- */
 :focus-visible {
-  outline: 2px solid var(--verdigris);
+  outline: 2px solid var(--purple);
   outline-offset: 2px;
   border-radius: 2px;
 }
 .site-header :focus-visible,
 .site-footer :focus-visible {
-  outline-color: var(--bronze); /* verdigris is too dark on canopy */
+  outline-color: var(--accent-orange);
 }
 
 /* ---- Header ---- */
 .site-header {
-  background-color: var(--canopy);
+  background-color: var(--paper);
+  border-bottom: 4px solid var(--purple-deep);
   box-shadow: var(--shadow-sm);
   padding-top: 0.5rem;
   padding-bottom: 0.5rem;
+}
+.site-brand__logo {
+  height: 52px;
+  width: auto;
+  display: block;
 }
 .site-brand {
   display: flex;
@@ -134,40 +152,45 @@ a:hover {
 }
 .site-brand__name {
   font-family: var(--font-display);
-  font-size: 1.25rem;
-  color: var(--fog);
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--purple);
   letter-spacing: 0.02em;
 }
 .site-brand__place {
   font-family: var(--font-mono);
   font-size: 0.68rem;
-  color: rgba(242, 244, 240, 0.82);
+  color: var(--purple-dark);
   letter-spacing: 0.06em;
 }
 .site-header .nav-link {
-  color: var(--fog);
-  font-family: var(--font-body);
+  color: var(--purple);
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.9rem;
   border-bottom: 2px solid transparent;
   margin-left: 0.75rem;
 }
 .site-header .nav-link:hover {
-  color: #fff;
+  color: var(--purple-deep);
 }
 .site-header .nav-link.active {
-  color: #fff;
-  border-bottom-color: var(--bronze);
+  color: var(--purple-deep);
+  border-bottom-color: var(--accent-orange);
 }
 .navbar-toggler {
-  border-color: rgba(242, 244, 240, 0.4);
+  border-color: rgba(84, 41, 137, 0.4);
 }
 .navbar-toggler-icon {
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28242, 244, 240, 0.9%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%2884, 41, 137, 0.9%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
 }
 
 /* ---- Footer ---- */
 .site-footer {
-  background-color: var(--canopy);
-  color: var(--fog);
+  background-color: var(--purple-deep);
+  color: var(--paper);
   padding: 1rem 0;
 }
 .site-footer__inner {
@@ -177,19 +200,20 @@ a:hover {
   gap: 1rem;
 }
 .site-footer__version {
-  color: rgba(242, 244, 240, 0.8);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 /* ---- The inscription panel (signature element) ---- */
 .inscription {
-  font-family: var(--font-display);
-  color: var(--granite);
-  letter-spacing: 0.04em;
+  font-family: var(--font-inscription);
+  font-weight: 500;
+  color: var(--purple-deep);
+  letter-spacing: 0.02em;
   text-align: center;
   white-space: pre-line;
 }
 .inscription--hero {
-  background-color: var(--fog-panel);
+  background-color: var(--panel);
   border-top: 1px solid var(--hairline);
   border-bottom: 1px solid var(--hairline);
   padding: 2.75rem 1.5rem;
@@ -225,7 +249,7 @@ a:hover {
   font-family: var(--font-body);
   font-style: italic;
   letter-spacing: 0;
-  color: var(--verdigris-deep);
+  color: var(--purple-dark);
 }
 @keyframes inscription-in {
   from { opacity: 0; transform: translateY(4px); }
@@ -280,7 +304,7 @@ a:hover {
 }
 .plaque-card__media {
   display: block;
-  background-color: var(--fog-panel);
+  background-color: var(--panel);
 }
 .plaque-card__thumb {
   width: 100%;
@@ -308,8 +332,8 @@ a:hover {
   align-items: center;
   justify-content: center;
   min-height: 120px;
-  background-color: var(--fog-panel);
-  color: var(--verdigris-deep);
+  background-color: var(--panel);
+  color: var(--purple-dark);
   font-family: var(--font-body);
   font-size: 0.85rem;
 }
@@ -317,7 +341,7 @@ a:hover {
 .state-message {
   text-align: center;
   padding: 3rem 1rem;
-  color: var(--granite);
+  color: var(--ink);
 }
 .state-message p {
   font-family: var(--font-display);
@@ -351,8 +375,8 @@ a:hover {
   max-width: none;
 }
 .search-field--floating .form-control {
-  background-color: rgba(242, 244, 240, 0.97);
-  border: 1px solid rgba(36, 41, 31, 0.12);
+  background-color: rgba(255, 255, 255, 0.97);
+  border: 1px solid rgba(49, 49, 49, 0.12);
   border-radius: 999px;
   box-shadow: var(--shadow-md);
   padding: 0.6rem 1.1rem;
@@ -366,7 +390,7 @@ a:hover {
   height: 2.75rem;
   border-radius: 50%;
   box-shadow: var(--shadow-md);
-  color: var(--verdigris-deep);
+  color: var(--purple-dark);
   font-size: 1.2rem;
 }
 .map-page__count {
@@ -374,7 +398,7 @@ a:hover {
   z-index: 1000;
   bottom: 0.75rem;
   right: 0.75rem;
-  background-color: rgba(242, 244, 240, 0.92);
+  background-color: rgba(255, 255, 255, 0.92);
   padding: 0.2rem 0.6rem;
   border-radius: 999px;
   box-shadow: var(--shadow-sm);
@@ -435,16 +459,16 @@ a:hover {
   color: #fff;
 }
 
-/* Cluster bubbles themed to verdigris */
+/* Cluster bubbles themed to lavender */
 .marker-cluster-small,
 .marker-cluster-medium,
 .marker-cluster-large {
-  background-color: rgba(62, 122, 102, 0.35);
+  background-color: rgba(166, 123, 218, 0.4);
 }
 .marker-cluster-small div,
 .marker-cluster-medium div,
 .marker-cluster-large div {
-  background-color: rgba(62, 122, 102, 0.9);
+  background-color: rgba(70, 29, 125, 0.9);
   color: #fff;
   font-family: var(--font-mono);
   font-weight: 500;
@@ -466,7 +490,7 @@ a:hover {
   width: 100%;
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
-  background-color: var(--fog-panel);
+  background-color: var(--panel);
   display: block;
 }
 .detail-figure figcaption {
@@ -474,7 +498,7 @@ a:hover {
   text-align: center;
 }
 .detail-figure figcaption a {
-  color: var(--verdigris);
+  color: var(--purple);
 }
 /* Source photo with the detected plaque outlined */
 .photo-highlight {
@@ -483,7 +507,7 @@ a:hover {
 }
 .photo-highlight__box {
   position: absolute;
-  border: 2px solid var(--bronze);
+  border: 2px solid var(--accent-orange);
   border-radius: 2px;
   box-shadow: 0 0 0 2px rgb(242 244 240 / 55%), 0 0 12px rgb(168 131 75 / 65%);
   pointer-events: none;
@@ -502,17 +526,17 @@ a:hover {
   overflow: hidden;
 }
 .detail-map--loading {
-  background-color: var(--fog-panel);
+  background-color: var(--panel);
 }
 .detail-accordion .accordion-button {
   font-family: var(--font-body);
 }
 .detail-accordion .accordion-button:not(.collapsed) {
-  color: var(--verdigris-deep);
-  background-color: var(--fog-panel);
+  color: var(--purple-dark);
+  background-color: var(--panel);
 }
 .detail-accordion .accordion-button:focus {
-  box-shadow: 0 0 0 0.2rem rgba(62, 122, 102, 0.25);
+  box-shadow: 0 0 0 0.2rem rgba(84, 41, 137, 0.25);
 }
 .detail-accordion__meta {
   margin-bottom: 0.75rem;
@@ -530,7 +554,7 @@ a:hover {
 .service-results dt {
   font-family: var(--font-mono);
   font-size: 0.8rem;
-  color: var(--verdigris-deep);
+  color: var(--purple-dark);
 }
 .service-results dd {
   margin: 0.25rem 0 0;

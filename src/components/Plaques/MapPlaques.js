@@ -27,8 +27,9 @@ const markerIcon = (color) =>
     popupAnchor: [0, -10]
   });
 
-const VERDIGRIS = '#3E7A66';
-const BRONZE = '#A8834B';
+const PURPLE = '#542989'; // CSPA brand purple (markers)
+const ORANGE = '#F89D35'; // CSPA accent (selected marker)
+const MOSS = '#90A878'; // green of the CSPA logo artwork (park outline)
 
 function markerLatLng(plaque) {
   const loc = plaque?.location;
@@ -114,11 +115,11 @@ export default function MapPlaques() {
   }, []);
 
   const geoJsonStyle = useMemo(
-    () => ({ color: VERDIGRIS, weight: 2, opacity: 0.6, fillOpacity: 0.08 }),
+    () => ({ color: MOSS, weight: 2, opacity: 0.7, fillOpacity: 0.08 }),
     []
   );
-  const verdigrisPin = useMemo(() => markerIcon(VERDIGRIS), []);
-  const bronzePin = useMemo(() => markerIcon(BRONZE), []);
+  const purplePin = useMemo(() => markerIcon(PURPLE), []);
+  const orangePin = useMemo(() => markerIcon(ORANGE), []);
 
   const markers = useMemo(
     () => results.filter((plaque) => markerLatLng(plaque)),
@@ -135,7 +136,7 @@ export default function MapPlaques() {
           <Marker
             key={plaque.id}
             position={markerLatLng(plaque)}
-            icon={isSelected ? bronzePin : verdigrisPin}
+            icon={isSelected ? orangePin : purplePin}
             zIndexOffset={isSelected ? 500 : 0}
             ref={(instance) => {
               if (instance) markerRefs.current[plaque.id] = instance;
@@ -153,7 +154,7 @@ export default function MapPlaques() {
           </Marker>
         );
       }),
-    [markers, plaqueParam, bronzePin, verdigrisPin]
+    [markers, plaqueParam, orangePin, purplePin]
   );
 
   return (

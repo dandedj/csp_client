@@ -3,10 +3,13 @@ import ReactDOM from 'react-dom/client';
 
 // Bootstrap first, then fonts, then brand overrides layered on top.
 import 'bootstrap/dist/css/bootstrap.min.css';
-import '@fontsource/marcellus/400.css';
-import '@fontsource/alegreya-sans/400.css';
-import '@fontsource/alegreya-sans/500.css';
-import '@fontsource/alegreya-sans/700.css';
+import '@fontsource/josefin-sans/600.css';
+import '@fontsource/josefin-sans/700.css';
+import '@fontsource/eb-garamond/500.css';
+import '@fontsource/eb-garamond/600.css';
+import '@fontsource/ibm-plex-sans/400.css';
+import '@fontsource/ibm-plex-sans/500.css';
+import '@fontsource/ibm-plex-sans/600.css';
 import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
 import './brand.css';

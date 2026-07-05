@@ -5,9 +5,10 @@
   "type": "module",
   "homepage": "/",
   "dependencies": {
-    "@fontsource/alegreya-sans": "^5.2.8",
+    "@fontsource/eb-garamond": "^5.2.7",
     "@fontsource/ibm-plex-mono": "^5.2.7",
-    "@fontsource/marcellus": "^5.2.8",
+    "@fontsource/ibm-plex-sans": "^5.2.8",
+    "@fontsource/josefin-sans": "^5.2.8",
     "bootstrap": "^5.3.2",
     "firebase": "^12.15.0",
     "leaflet": "^1.9.4",
